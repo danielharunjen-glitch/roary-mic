@@ -24,6 +24,7 @@ import { useOsType } from "@/hooks/useOsType";
 import { formatDateTime } from "@/utils/dateFormat";
 import { AudioPlayer } from "../../ui/AudioPlayer";
 import { Button } from "../../ui/Button";
+import { SectionHeader } from "../SectionHeader";
 
 const IconButton: React.FC<{
   onClick: () => void;
@@ -297,23 +298,18 @@ export const HistorySettings: React.FC = () => {
   }
 
   return (
-    <div className="max-w-3xl w-full mx-auto space-y-6">
-      <div className="space-y-2">
-        <div className="px-4 flex items-center justify-between">
-          <div>
-            <h2 className="text-xs font-medium text-mid-gray uppercase tracking-wide">
-              {t("settings.history.title")}
-            </h2>
-          </div>
+    <div className="max-w-3xl w-full mx-auto pb-12">
+      <SectionHeader
+        number="04"
+        title={t("settings.history.title")}
+        right={
           <OpenRecordingsButton
             onClick={openRecordingsFolder}
             label={t("settings.history.openFolder")}
           />
-        </div>
-        <div className="bg-background border border-mid-gray/20 rounded-lg overflow-visible">
-          {content}
-        </div>
-      </div>
+        }
+      />
+      <div className="px-2">{content}</div>
     </div>
   );
 };

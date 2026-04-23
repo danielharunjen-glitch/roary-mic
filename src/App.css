@@ -99,6 +99,45 @@
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.96 0 0 0 0 0.94 0 0 0 0 0.88 0 0 0 0.8 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/></svg>");
     background-size: 160px 160px;
   }
+
+  /* Atmospheric warmth — a subtle radial glow of accent color at the
+     top-left, decaying quickly. Adds depth without screaming. */
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: -1;
+    background:
+      radial-gradient(
+        900px circle at 12% -8%,
+        color-mix(in srgb, var(--color-accent) 18%, transparent) 0%,
+        transparent 55%
+      ),
+      radial-gradient(
+        700px circle at 100% 100%,
+        color-mix(in srgb, var(--color-accent) 8%, transparent) 0%,
+        transparent 60%
+      );
+  }
+}
+
+/* ============================================================
+   Section-switch motion — 260ms fade + 8px up-slide
+   ============================================================ */
+@keyframes sectionEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.section-enter {
+  animation: sectionEnter 260ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 /* =============================================================

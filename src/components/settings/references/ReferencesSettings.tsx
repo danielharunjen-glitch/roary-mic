@@ -5,6 +5,7 @@ import { ArrowRight, Plus, Power, Trash2 } from "lucide-react";
 import { correctionCommands, type Correction } from "@/lib/corrections";
 import { formatDateTime } from "@/utils/dateFormat";
 import { Button } from "../../ui/Button";
+import { SectionHeader } from "../SectionHeader";
 
 const IconButton: React.FC<{
   onClick: () => void;
@@ -101,15 +102,15 @@ export const ReferencesSettings: React.FC = () => {
   };
 
   return (
-    <div className="max-w-3xl w-full mx-auto space-y-6">
+    <div className="max-w-3xl w-full mx-auto pb-12">
+      <SectionHeader
+        number="06"
+        title={t("settings.references.title")}
+        description={t("settings.references.description")}
+      />
       <div className="space-y-2">
         <div className="px-4">
-          <h2 className="text-xs font-medium text-mid-gray uppercase tracking-wide">
-            {t("settings.references.title")}
-          </h2>
-          <p className="text-xs text-mid-gray mt-1 whitespace-pre-line">
-            {t("settings.references.description")}
-          </p>
+          {/* keeping the inline info card only, header is now in SectionHeader */}
           <div className="mt-2 rounded-md bg-logo-primary/5 border border-logo-primary/20 px-3 py-2 text-xs text-text/80">
             <span className="font-medium">
               {t("settings.references.exampleTitle")}:

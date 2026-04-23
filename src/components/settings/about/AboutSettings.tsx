@@ -27,38 +27,70 @@ export const AboutSettings: React.FC = () => {
     fetchVersion();
   }, []);
 
-  const handleDonateClick = async () => {
-    try {
-      await openUrl("https://handy.computer/donate");
-    } catch (error) {
-      console.error("Failed to open donate link:", error);
-    }
-  };
-
   return (
-    <div className="max-w-3xl w-full mx-auto pb-12">
-      {/* Editorial hero */}
-      <section className="pt-14 pb-10 px-6">
-        {/* eslint-disable i18next/no-literal-string */}
-        <div className="font-mono text-[11px] tracking-[0.18em] mb-4" style={{ color: "var(--color-muted)" }}>ROARY MIC · v{version || "0.0.0"}</div>
-        <h1 className="font-display text-[64px] leading-[0.95] tracking-tight" style={{ color: "var(--color-ink)" }}>
-          <span className="italic" style={{ color: "var(--color-accent)" }}>Roary</span>{" "}
-          <span>Mic</span>
-        </h1>
-        {/* eslint-enable i18next/no-literal-string */}
-        <p
-          className="font-sans text-[15px] leading-[1.6] mt-6 max-w-[46ch]"
-          style={{ color: "var(--color-muted)" }}
-        >
-          {t("settings.about.version.description")}
-        </p>
+    <div className="max-w-3xl w-full mx-auto pb-16">
+      {/* Editorial hero — magazine cover treatment. */}
+      <section className="relative pt-20 pb-14 px-8 overflow-hidden">
+        {/* Large decorative lion mark, subtly behind the type */}
         <div
           aria-hidden
-          className="text-[64px] leading-none select-none mt-10"
-          style={{ opacity: 0.25 }}
-          title="Roary Mic"
+          className="absolute select-none pointer-events-none"
+          style={{
+            top: "48%",
+            right: "-32px",
+            transform: "translateY(-50%)",
+            fontSize: "260px",
+            lineHeight: 1,
+            opacity: 0.12,
+            filter: "saturate(0.6)",
+          }}
         >
           🦁
+        </div>
+
+        <div className="relative">
+          {/* eslint-disable i18next/no-literal-string */}
+          <div
+            className="font-mono text-[10px] tracking-[0.24em] mb-5"
+            style={{ color: "var(--color-muted)" }}
+          >
+            ROARY&nbsp;MIC &nbsp;·&nbsp; v{version || "—"} &nbsp;·&nbsp; MACOS
+          </div>
+          <h1
+            className="font-display tracking-tight"
+            style={{
+              color: "var(--color-ink)",
+              fontSize: "clamp(64px, 11vw, 104px)",
+              lineHeight: 0.88,
+              letterSpacing: "-0.03em",
+            }}
+          >
+            <span
+              className="italic"
+              style={{ color: "var(--color-accent)" }}
+            >
+              Roary
+            </span>
+            <br />
+            <span style={{ fontWeight: 400 }}>Mic.</span>
+          </h1>
+          {/* eslint-enable i18next/no-literal-string */}
+
+          <div
+            aria-hidden
+            className="mt-8 mb-6"
+            style={{
+              height: "2px",
+              width: "40px",
+              background: "var(--color-accent)",
+            }}
+          />
+          <p
+            className="font-sans text-[15px] leading-[1.65] max-w-[44ch]"
+            style={{ color: "var(--color-muted)" }}
+          >
+            {t("settings.about.version.description")}
+          </p>
         </div>
       </section>
 
@@ -73,16 +105,6 @@ export const AboutSettings: React.FC = () => {
           <span className="font-mono text-[12px] tracking-wider">
             v{version}
           </span>
-        </SettingContainer>
-
-        <SettingContainer
-          title={t("settings.about.supportDevelopment.title")}
-          description={t("settings.about.supportDevelopment.description")}
-          grouped={true}
-        >
-          <Button variant="primary" size="md" onClick={handleDonateClick}>
-            {t("settings.about.supportDevelopment.button")}
-          </Button>
         </SettingContainer>
 
         <SettingContainer

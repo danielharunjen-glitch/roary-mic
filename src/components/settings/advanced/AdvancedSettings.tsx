@@ -20,6 +20,7 @@ import { useSettings } from "../../../hooks/useSettings";
 import { KeyboardImplementationSelector } from "../debug/KeyboardImplementationSelector";
 import { AccelerationSelector } from "../AccelerationSelector";
 import { LazyStreamClose } from "../LazyStreamClose";
+import { SectionHeader } from "../SectionHeader";
 
 export const AdvancedSettings: React.FC = () => {
   const { t } = useTranslation();
@@ -27,7 +28,8 @@ export const AdvancedSettings: React.FC = () => {
   const experimentalEnabled = getSetting("experimental_enabled") || false;
 
   return (
-    <div className="max-w-3xl w-full mx-auto space-y-6">
+    <div className="max-w-3xl w-full mx-auto pb-12">
+      <SectionHeader number="03" title={t("settings.advanced.title")} />
       <SettingsGroup title={t("settings.advanced.groups.app")}>
         <StartHidden descriptionMode="tooltip" grouped={true} />
         <AutostartToggle descriptionMode="tooltip" grouped={true} />

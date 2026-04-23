@@ -473,21 +473,34 @@ async fn handle_ai_mode_completion(
     let screenshot_png: Option<Vec<u8>> = if settings.ai_mode_include_screenshot
         && !is_claude_code_local
     {
-        match tauri::async_runtime::spawn_blocking(crate::screenshot::capture_primary_display_png)
+        // Preflight Screen Recording permission. Without it, xcap silently
+        // returns a frame containing only the desktop wallpaper — capture
+        // "succeeds" but the image is useless. Bail early and tell the UI.
+        let screen_recording_ok =
+            tauri_plugin_macos_permissions::check_screen_recording_permission().await;
+        if !screen_recording_ok {
+            warn!("AI mode screenshot skipped: Screen Recording permission not granted");
+            let _ = ah.emit("ai-mode-screenshot-permission-denied", ());
+            None
+        } else {
+            match tauri::async_runtime::spawn_blocking(
+                crate::screenshot::capture_primary_display_png,
+            )
             .await
-        {
-            Ok(Ok(bytes)) => Some(bytes),
-            Ok(Err(e)) => {
-                warn!("AI mode screenshot capture failed: {}", e);
-                let _ = ah.emit(
-                    "ai-mode-screenshot-warning",
-                    format!("Screenshot unavailable: {}", e),
-                );
-                None
-            }
-            Err(e) => {
-                warn!("AI mode screenshot task panicked: {}", e);
-                None
+            {
+                Ok(Ok(bytes)) => Some(bytes),
+                Ok(Err(e)) => {
+                    warn!("AI mode screenshot capture failed: {}", e);
+                    let _ = ah.emit(
+                        "ai-mode-screenshot-warning",
+                        format!("Screenshot unavailable: {}", e),
+                    );
+                    None
+                }
+                Err(e) => {
+                    warn!("AI mode screenshot task panicked: {}", e);
+                    None
+                }
             }
         }
     } else {

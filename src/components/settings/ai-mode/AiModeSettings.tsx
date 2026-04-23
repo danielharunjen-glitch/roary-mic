@@ -7,6 +7,7 @@ import { useSettings } from "../../../hooks/useSettings";
 import { useSettingsStore } from "../../../stores/settingsStore";
 import { ToggleSwitch } from "../../ui/ToggleSwitch";
 import { ShortcutInput } from "../ShortcutInput";
+import ScreenRecordingPermissions from "../../ScreenRecordingPermissions";
 
 const CLAUDE_CODE_LOCAL_ID = "claude_code_local";
 
@@ -328,15 +329,20 @@ export const AiModeSettings: React.FC = () => {
               </div>
 
               {!isClaudeCodeLocal && (
-                <ToggleSwitch
-                  checked={includeScreenshot}
-                  onChange={handleIncludeScreenshotToggle}
-                  label={t("settings.aiMode.includeScreenshotLabel")}
-                  description={t(
-                    "settings.aiMode.includeScreenshotDescription",
+                <>
+                  <ToggleSwitch
+                    checked={includeScreenshot}
+                    onChange={handleIncludeScreenshotToggle}
+                    label={t("settings.aiMode.includeScreenshotLabel")}
+                    description={t(
+                      "settings.aiMode.includeScreenshotDescription",
+                    )}
+                    descriptionMode="inline"
+                  />
+                  {includeScreenshot && (
+                    <ScreenRecordingPermissions compact />
                   )}
-                  descriptionMode="inline"
-                />
+                </>
               )}
 
               <div className="space-y-1">

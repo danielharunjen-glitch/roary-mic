@@ -584,6 +584,13 @@
     "openSettings": "開啟系統設定",
     "dismiss": "關閉"
   },
+  "screenRecording": {
+    "permissionsRequired": "Screen Recording Permission Required",
+    "permissionsDescription": "Roary Mic needs Screen Recording permission to attach a screenshot. Without it, the captured image is only the desktop wallpaper.",
+    "requestPermission": "Request Permission",
+    "openSettings": "Open System Settings",
+    "relaunchHint": "After granting, fully quit Roary Mic (Cmd+Q) and reopen. Permission changes do not apply to the running process."
+  },
   "errors": {
     "loadDirectory": "載入目錄時發生錯誤: {{error}}",
     "micPermissionDeniedTitle": "麥克風存取被拒絕",

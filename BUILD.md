@@ -76,6 +76,47 @@ bun run tauri build
 
 This compiles a release binary and generates platform-specific bundles (deb, rpm, AppImage on Linux; dmg on macOS; msi on Windows).
 
+## macOS Install (from source)
+
+For local rebuild + reinstall in one step, use the ship script:
+
+```bash
+bun run ship             # commit (with confirmation), build, replace /Applications/Roary Mic.app, relaunch
+bun run ship --skip-commit   # build and reinstall without touching git
+bun run ship --push          # also push to origin after committing
+```
+
+### Optional: make Screen Recording permission persist across rebuilds
+
+By default the bundle is ad-hoc signed (`signingIdentity: "-"` in `src-tauri/tauri.conf.json`). Ad-hoc signatures change on every rebuild, so macOS TCC forgets previously-granted Screen Recording / Accessibility permissions and re-prompts.
+
+To keep those grants stable on your dev machine, create a local self-signed identity once:
+
+```bash
+bash scripts/setup-codesign-identity.sh
+```
+
+The script creates a code-signing cert named `RoaryMicLocal` in your login Keychain. You will be asked for your macOS login password once (needed to set the key's partition list so `codesign` can use the key without GUI prompts on each build).
+
+Then opt in by editing `src-tauri/tauri.conf.json`:
+
+```jsonc
+"bundle": {
+  "macOS": {
+    "signingIdentity": "RoaryMicLocal"   // was "-"
+  }
+}
+```
+
+TCC now keys on the stable designated requirement, so grants persist across rebuilds. Note: this is machine-local only — the app is still not distributable to other users. For distribution, use a paid Apple Developer ID.
+
+To undo:
+
+```bash
+security delete-identity -c "RoaryMicLocal" ~/Library/Keychains/login.keychain-db
+```
+… and revert `signingIdentity` back to `"-"` in `tauri.conf.json`.
+
 ## Linux Install (from source)
 
 The raw binary (`src-tauri/target/release/handy`) cannot run standalone — it needs Tauri resource files (tray icons, sounds, VAD model) to be co-located at the expected path.

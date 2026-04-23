@@ -679,6 +679,13 @@
     "openSettings": "Open System Settings",
     "dismiss": "Dismiss"
   },
+  "screenRecording": {
+    "permissionsRequired": "Screen Recording Permission Required",
+    "permissionsDescription": "Roary Mic needs Screen Recording permission to attach a screenshot. Without it, the captured image is only the desktop wallpaper.",
+    "requestPermission": "Request Permission",
+    "openSettings": "Open System Settings",
+    "relaunchHint": "After granting, fully quit Roary Mic (Cmd+Q) and reopen. Permission changes don't apply to the running process."
+  },
   "errors": {
     "loadDirectory": "Error loading directory: {{error}}",
     "micPermissionDeniedTitle": "Microphone Access Denied",

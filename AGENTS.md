@@ -23,6 +23,10 @@ CMAKE_POLICY_VERSION_MINIMUM=3.5 bun run tauri dev
 # Build for production
 bun run tauri build
 
+# macOS: rebuild + reinstall to /Applications/Roary Mic.app in one step
+bun run ship                 # prompts to commit, builds, installs, relaunches
+bun run ship --skip-commit   # just build + install
+
 # Frontend only development
 bun run dev        # Start Vite dev server
 bun run build      # Build frontend (TypeScript + Vite)
@@ -197,9 +201,15 @@ Handy supports command-line parameters on all platforms for integration with scr
 
 Access debug features: `Cmd+Shift+D` (macOS) or `Ctrl+Shift+D` (Windows/Linux)
 
+## Research
+
+Exploratory, non-binding research docs live in `docs/research/`.
+
+- `docs/research/2026-04-23-local-correction-llm.md` — investigation of <1GB local LLMs for post-processing Whisper transcripts (punctuation, homophones, proper nouns). Recommendation: prototype with Qwen2.5 0.5B Instruct via `llama-cpp-2`. Implementation is a future follow-up plan, not current work.
+
 ## Platform Notes
 
-- **macOS**: Metal acceleration, accessibility permissions required for keyboard shortcuts
+- **macOS**: Metal acceleration, accessibility permissions required for keyboard shortcuts. Screen Recording permission required for the AI-mode screenshot feature — without it, captures silently return only the desktop wallpaper. The settings UI detects a missing grant and surfaces a card that deep-links to System Settings.
 - **Windows**: Vulkan acceleration, code signing
 - **Linux**: OpenBLAS + Vulkan, limited Wayland support, overlay uses GTK layer shell (disable with `HANDY_NO_GTK_LAYER_SHELL=1`)
 

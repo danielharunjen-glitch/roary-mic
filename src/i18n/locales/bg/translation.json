@@ -584,6 +584,13 @@
     "openSettings": "Отваряне на системните настройки",
     "dismiss": "Затваряне"
   },
+  "screenRecording": {
+    "permissionsRequired": "Screen Recording Permission Required",
+    "permissionsDescription": "Roary Mic needs Screen Recording permission to attach a screenshot. Without it, the captured image is only the desktop wallpaper.",
+    "requestPermission": "Request Permission",
+    "openSettings": "Open System Settings",
+    "relaunchHint": "After granting, fully quit Roary Mic (Cmd+Q) and reopen. Permission changes do not apply to the running process."
+  },
   "errors": {
     "loadDirectory": "Грешка при зареждане на папката: {{error}}",
     "micPermissionDeniedTitle": "Достъпът до микрофона е отказан",

@@ -9,6 +9,8 @@ use tauri_plugin_store::StoreExt;
 
 pub const APPLE_INTELLIGENCE_PROVIDER_ID: &str = "apple_intelligence";
 pub const APPLE_INTELLIGENCE_DEFAULT_MODEL_ID: &str = "Apple Intelligence";
+pub const CLAUDE_CODE_LOCAL_PROVIDER_ID: &str = "claude_code_local";
+pub const CLAUDE_CODE_LOCAL_DEFAULT_MODEL_ID: &str = "claude-code";
 
 #[derive(Serialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
 #[serde(rename_all = "lowercase")]
@@ -143,6 +145,19 @@ pub enum PasteMethod {
 pub enum ClipboardHandling {
     DontModify,
     CopyToClipboard,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum AiModeOutputMode {
+    AutoPaste,
+    PromptWindow,
+}
+
+impl Default for AiModeOutputMode {
+    fn default() -> Self {
+        AiModeOutputMode::PromptWindow
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
@@ -440,6 +455,14 @@ pub struct AppSettings {
     pub ai_mode_prompt: String,
     #[serde(default = "default_ai_mode_include_screenshot")]
     pub ai_mode_include_screenshot: bool,
+    #[serde(default)]
+    pub ai_mode_output_mode: AiModeOutputMode,
+    #[serde(default = "default_elevenlabs_api_keys")]
+    pub elevenlabs_api_keys: SecretMap,
+    #[serde(default = "default_elevenlabs_voice_id")]
+    pub elevenlabs_voice_id: String,
+    #[serde(default = "default_elevenlabs_model_id")]
+    pub elevenlabs_model_id: String,
 }
 
 fn default_model() -> String {
@@ -547,6 +570,21 @@ fn default_ai_mode_include_screenshot() -> bool {
     true
 }
 
+fn default_elevenlabs_api_keys() -> SecretMap {
+    let mut map = HashMap::new();
+    map.insert("elevenlabs".to_string(), String::new());
+    SecretMap(map)
+}
+
+fn default_elevenlabs_voice_id() -> String {
+    // "Rachel" — ElevenLabs' stock default voice
+    "21m00Tcm4TlvDq8ikWAM".to_string()
+}
+
+fn default_elevenlabs_model_id() -> String {
+    "eleven_turbo_v2_5".to_string()
+}
+
 fn default_post_process_providers() -> Vec<PostProcessProvider> {
     let mut providers = vec![
         PostProcessProvider {
@@ -625,6 +663,18 @@ fn default_post_process_providers() -> Vec<PostProcessProvider> {
         supports_structured_output: true,
     });
 
+    // Claude Code CLI — delegates to the locally-installed `claude` binary,
+    // using the user's existing Claude subscription. The `claude-code-local://`
+    // scheme is a sentinel that tells llm_client to bypass reqwest entirely.
+    providers.push(PostProcessProvider {
+        id: CLAUDE_CODE_LOCAL_PROVIDER_ID.to_string(),
+        label: "Claude Code (local subscription)".to_string(),
+        base_url: "claude-code-local://".to_string(),
+        allow_base_url_edit: false,
+        models_endpoint: None,
+        supports_structured_output: false,
+    });
+
     // Custom provider always comes last
     providers.push(PostProcessProvider {
         id: "custom".to_string(),
@@ -649,6 +699,9 @@ fn default_post_process_api_keys() -> SecretMap {
 fn default_model_for_provider(provider_id: &str) -> String {
     if provider_id == APPLE_INTELLIGENCE_PROVIDER_ID {
         return APPLE_INTELLIGENCE_DEFAULT_MODEL_ID.to_string();
+    }
+    if provider_id == CLAUDE_CODE_LOCAL_PROVIDER_ID {
+        return CLAUDE_CODE_LOCAL_DEFAULT_MODEL_ID.to_string();
     }
     String::new()
 }
@@ -867,6 +920,10 @@ pub fn get_default_settings() -> AppSettings {
         ai_mode_model: String::new(),
         ai_mode_prompt: default_ai_mode_prompt(),
         ai_mode_include_screenshot: default_ai_mode_include_screenshot(),
+        ai_mode_output_mode: AiModeOutputMode::default(),
+        elevenlabs_api_keys: default_elevenlabs_api_keys(),
+        elevenlabs_voice_id: default_elevenlabs_voice_id(),
+        elevenlabs_model_id: default_elevenlabs_model_id(),
     }
 }
 
@@ -890,6 +947,13 @@ impl AppSettings {
         self.post_process_providers
             .iter_mut()
             .find(|provider| provider.id == provider_id)
+    }
+
+    pub fn elevenlabs_api_key(&self) -> String {
+        self.elevenlabs_api_keys
+            .get("elevenlabs")
+            .cloned()
+            .unwrap_or_default()
     }
 }
 
@@ -1038,5 +1102,51 @@ mod tests {
         let out = format!("{:?}", map);
         assert!(!out.contains("secret"));
         assert!(out.contains("[REDACTED]"));
+    }
+
+    #[test]
+    fn ai_mode_defaults_to_prompt_window() {
+        let settings = get_default_settings();
+        assert_eq!(settings.ai_mode_output_mode, AiModeOutputMode::PromptWindow);
+    }
+
+    #[test]
+    fn elevenlabs_defaults_are_sensible() {
+        let settings = get_default_settings();
+        assert_eq!(settings.elevenlabs_voice_id, "21m00Tcm4TlvDq8ikWAM");
+        assert_eq!(settings.elevenlabs_model_id, "eleven_turbo_v2_5");
+        assert_eq!(settings.elevenlabs_api_key(), "");
+    }
+
+    #[test]
+    fn elevenlabs_api_key_debug_is_redacted() {
+        let mut settings = get_default_settings();
+        settings
+            .elevenlabs_api_keys
+            .insert("elevenlabs".into(), "super-secret".into());
+        let out = format!("{:?}", settings);
+        assert!(!out.contains("super-secret"));
+        assert!(out.contains("[REDACTED]"));
+    }
+
+    #[test]
+    fn claude_code_local_provider_is_registered() {
+        let providers = default_post_process_providers();
+        let provider = providers
+            .iter()
+            .find(|p| p.id == CLAUDE_CODE_LOCAL_PROVIDER_ID)
+            .expect("claude_code_local provider must be present");
+        assert_eq!(provider.base_url, "claude-code-local://");
+        assert!(!provider.supports_structured_output);
+        assert!(provider.models_endpoint.is_none());
+    }
+
+    #[test]
+    fn claude_code_local_has_default_model() {
+        let map = default_post_process_models();
+        assert_eq!(
+            map.get(CLAUDE_CODE_LOCAL_PROVIDER_ID).map(String::as_str),
+            Some(CLAUDE_CODE_LOCAL_DEFAULT_MODEL_ID)
+        );
     }
 }

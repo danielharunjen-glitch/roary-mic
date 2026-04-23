@@ -2,6 +2,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import {
   Bot,
+  BookOpen,
   Cog,
   FlaskConical,
   History,
@@ -22,6 +23,7 @@ import {
   PostProcessingSettings,
   ModelsSettings,
   CorrectionsSettings,
+  ReferencesSettings,
   AiModeSettings,
 } from "./settings";
 
@@ -71,6 +73,12 @@ export const SECTIONS_CONFIG = {
     labelKey: "sidebar.corrections",
     icon: Replace,
     component: CorrectionsSettings,
+    enabled: () => true,
+  },
+  references: {
+    labelKey: "sidebar.references",
+    icon: BookOpen,
+    component: ReferencesSettings,
     enabled: () => true,
   },
   aiMode: {

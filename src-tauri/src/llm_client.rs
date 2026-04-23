@@ -1,4 +1,4 @@
-use crate::settings::PostProcessProvider;
+use crate::settings::{PostProcessProvider, CLAUDE_CODE_LOCAL_PROVIDER_ID};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use log::debug;
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE, REFERER, USER_AGENT};
@@ -58,6 +58,16 @@ struct ChatChoice {
 #[derive(Debug, Deserialize)]
 struct ChatMessageResponse {
     content: Option<String>,
+}
+
+/// Is this the synthetic Claude Code (local subscription) provider?
+///
+/// Identified by the reserved `claude-code-local://` base URL. Checking the
+/// URL (not just the id) means a user who renames the custom provider won't
+/// accidentally route through the subprocess.
+pub(crate) fn is_claude_code_local(provider: &PostProcessProvider) -> bool {
+    provider.id == CLAUDE_CODE_LOCAL_PROVIDER_ID
+        && provider.base_url.starts_with("claude-code-local://")
 }
 
 /// Build headers for API requests based on provider type
@@ -228,6 +238,20 @@ pub async fn send_chat_completion_multimodal(
     user_text: String,
     image_png_bytes: Option<&[u8]>,
 ) -> Result<Option<String>, String> {
+    // Claude Code (local subscription) is a synthetic provider — it delegates
+    // to the locally-installed `claude` CLI instead of making HTTP requests.
+    if is_claude_code_local(provider) {
+        let _ = (api_key, model); // Unused — the CLI uses the user's `claude login` credentials.
+        debug!("Routing multimodal request through local Claude Code CLI");
+        let reply = crate::claude_code::run_claude_code(
+            &user_text,
+            image_png_bytes,
+            system_prompt.as_deref(),
+        )
+        .await?;
+        return Ok(Some(reply));
+    }
+
     let base_url = provider.base_url.trim_end_matches('/');
     let url = format!("{}/chat/completions", base_url);
 
@@ -352,4 +376,58 @@ pub async fn fetch_models(
     }
 
     Ok(models)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn local_provider() -> PostProcessProvider {
+        PostProcessProvider {
+            id: CLAUDE_CODE_LOCAL_PROVIDER_ID.to_string(),
+            label: "Claude Code (local subscription)".to_string(),
+            base_url: "claude-code-local://".to_string(),
+            allow_base_url_edit: false,
+            models_endpoint: None,
+            supports_structured_output: false,
+        }
+    }
+
+    #[test]
+    fn claude_code_local_routing_matches_synthetic_provider() {
+        assert!(is_claude_code_local(&local_provider()));
+    }
+
+    #[test]
+    fn claude_code_local_routing_rejects_mismatched_id() {
+        let mut p = local_provider();
+        p.id = "custom".to_string();
+        assert!(
+            !is_claude_code_local(&p),
+            "a custom provider with the sentinel URL should not be routed to the CLI"
+        );
+    }
+
+    #[test]
+    fn claude_code_local_routing_rejects_mismatched_url() {
+        let mut p = local_provider();
+        p.base_url = "http://localhost:11434/v1".to_string();
+        assert!(
+            !is_claude_code_local(&p),
+            "the provider id alone should not be enough — URL must match too"
+        );
+    }
+
+    #[test]
+    fn regular_http_providers_are_not_treated_as_local() {
+        let anthropic = PostProcessProvider {
+            id: "anthropic".to_string(),
+            label: "Anthropic".to_string(),
+            base_url: "https://api.anthropic.com/v1".to_string(),
+            allow_base_url_edit: false,
+            models_endpoint: Some("/models".to_string()),
+            supports_structured_output: false,
+        };
+        assert!(!is_claude_code_local(&anthropic));
+    }
 }

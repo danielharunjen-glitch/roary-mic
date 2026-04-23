@@ -5,7 +5,9 @@ use crate::audio_toolkit::{is_microphone_access_denied, is_no_input_device_error
 use crate::managers::audio::AudioRecordingManager;
 use crate::managers::history::HistoryManager;
 use crate::managers::transcription::TranscriptionManager;
-use crate::settings::{get_settings, AppSettings, APPLE_INTELLIGENCE_PROVIDER_ID};
+use crate::settings::{
+    get_settings, AiModeOutputMode, AppSettings, APPLE_INTELLIGENCE_PROVIDER_ID,
+};
 use crate::shortcut;
 use crate::tray::{change_tray_icon, TrayIconState};
 use crate::utils::{
@@ -538,24 +540,42 @@ async fn handle_ai_mode_completion(
         return;
     }
 
-    let ah_clone = ah.clone();
-    let paste_time = Instant::now();
-    ah.run_on_main_thread(move || {
-        match utils::paste(reply, ah_clone.clone()) {
-            Ok(()) => debug!("AI mode reply pasted in {:?}", paste_time.elapsed()),
-            Err(e) => {
-                error!("Failed to paste AI mode reply: {}", e);
-                let _ = ah_clone.emit("paste-error", ());
-            }
+    match settings.ai_mode_output_mode {
+        AiModeOutputMode::AutoPaste => {
+            let ah_clone = ah.clone();
+            let paste_time = Instant::now();
+            ah.run_on_main_thread(move || {
+                match utils::paste(reply, ah_clone.clone()) {
+                    Ok(()) => debug!("AI mode reply pasted in {:?}", paste_time.elapsed()),
+                    Err(e) => {
+                        error!("Failed to paste AI mode reply: {}", e);
+                        let _ = ah_clone.emit("paste-error", ());
+                    }
+                }
+                utils::hide_recording_overlay(&ah_clone);
+                change_tray_icon(&ah_clone, TrayIconState::Idle);
+            })
+            .unwrap_or_else(|e| {
+                error!("Failed to run paste on main thread: {:?}", e);
+                utils::hide_recording_overlay(ah);
+                change_tray_icon(ah, TrayIconState::Idle);
+            });
         }
-        utils::hide_recording_overlay(&ah_clone);
-        change_tray_icon(&ah_clone, TrayIconState::Idle);
-    })
-    .unwrap_or_else(|e| {
-        error!("Failed to run paste on main thread: {:?}", e);
-        utils::hide_recording_overlay(ah);
-        change_tray_icon(ah, TrayIconState::Idle);
-    });
+        AiModeOutputMode::PromptWindow => {
+            let ah_clone = ah.clone();
+            let reply_for_window = reply.clone();
+            ah.run_on_main_thread(move || {
+                crate::ai_reply::show_ai_reply_window(&ah_clone, reply_for_window);
+                utils::hide_recording_overlay(&ah_clone);
+                change_tray_icon(&ah_clone, TrayIconState::Idle);
+            })
+            .unwrap_or_else(|e| {
+                error!("Failed to show AI reply window on main thread: {:?}", e);
+                utils::hide_recording_overlay(ah);
+                change_tray_icon(ah, TrayIconState::Idle);
+            });
+        }
+    }
 }
 
 impl ShortcutAction for TranscribeAction {

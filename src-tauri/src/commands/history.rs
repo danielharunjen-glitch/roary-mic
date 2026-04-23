@@ -144,10 +144,11 @@ pub async fn list_corrections(
     _app: AppHandle,
     history_manager: State<'_, Arc<HistoryManager>>,
     limit: Option<usize>,
+    kind: Option<String>,
 ) -> Result<Vec<Correction>, String> {
     let limit = limit.unwrap_or(100).min(500);
     history_manager
-        .list_corrections(limit)
+        .list_corrections(limit, kind.as_deref())
         .map_err(|e| e.to_string())
 }
 
@@ -183,9 +184,10 @@ pub async fn insert_correction(
     history_manager: State<'_, Arc<HistoryManager>>,
     original_text: String,
     corrected_text: String,
+    kind: Option<String>,
 ) -> Result<Correction, String> {
     history_manager
-        .insert_correction(original_text, corrected_text)
+        .insert_correction(original_text, corrected_text, kind)
         .map_err(|e| e.to_string())
 }
 

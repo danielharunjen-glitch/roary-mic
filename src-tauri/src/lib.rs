@@ -1,8 +1,10 @@
 mod actions;
+mod ai_reply;
 #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 mod apple_intelligence;
 mod audio_feedback;
 pub mod audio_toolkit;
+mod claude_code;
 pub mod cli;
 mod clipboard;
 mod commands;
@@ -19,6 +21,7 @@ mod signal_handle;
 mod transcription_coordinator;
 mod tray;
 mod tray_i18n;
+mod tts;
 mod utils;
 
 pub use cli::CliArgs;
@@ -354,6 +357,14 @@ pub fn run(cli_args: CliArgs) {
             shortcut::change_ai_mode_model_setting,
             shortcut::change_ai_mode_prompt_setting,
             shortcut::change_ai_mode_include_screenshot_setting,
+            shortcut::change_ai_mode_output_mode_setting,
+            shortcut::change_elevenlabs_api_key_setting,
+            shortcut::change_elevenlabs_voice_id_setting,
+            shortcut::change_elevenlabs_model_id_setting,
+            commands::ai_reply::ai_reply_show,
+            commands::ai_reply::ai_reply_paste,
+            commands::ai_reply::ai_reply_speak,
+            commands::ai_reply::ai_reply_cancel,
             shortcut::change_post_process_base_url_setting,
             shortcut::change_post_process_api_key_setting,
             shortcut::change_post_process_model_setting,
@@ -393,6 +404,7 @@ pub fn run(cli_args: CliArgs) {
             commands::open_log_dir,
             commands::open_app_data_dir,
             commands::check_apple_intelligence_available,
+            commands::check_claude_code_available,
             commands::initialize_enigo,
             commands::initialize_shortcuts,
             commands::models::get_available_models,
@@ -523,7 +535,7 @@ pub fn run(cli_args: CliArgs) {
             // for portable mode (redirects WebView2 cache to portable Data dir)
             let mut win_builder =
                 tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::App("/".into()))
-                    .title("Handy")
+                    .title("Roary Mic")
                     .inner_size(680.0, 570.0)
                     .min_inner_size(680.0, 570.0)
                     .resizable(true)
@@ -623,4 +635,26 @@ pub fn run(cli_args: CliArgs) {
             }
             let _ = (app, event); // suppress unused warnings on non-macOS
         });
+}
+
+#[cfg(test)]
+mod rebrand_tests {
+    #[test]
+    fn tauri_conf_product_name_is_roary_mic() {
+        let manifest_dir = env!("CARGO_MANIFEST_DIR");
+        let conf_path = std::path::Path::new(manifest_dir).join("tauri.conf.json");
+        let raw = std::fs::read_to_string(&conf_path)
+            .unwrap_or_else(|e| panic!("failed to read {}: {}", conf_path.display(), e));
+        let json: serde_json::Value = serde_json::from_str(&raw).expect("tauri.conf.json is JSON");
+        assert_eq!(
+            json.get("productName").and_then(|v| v.as_str()),
+            Some("Roary Mic"),
+            "productName must stay as Roary Mic"
+        );
+        assert_eq!(
+            json.get("identifier").and_then(|v| v.as_str()),
+            Some("com.harunjen.roarymic"),
+            "identifier must stay on the Roary Mic bundle id"
+        );
+    }
 }

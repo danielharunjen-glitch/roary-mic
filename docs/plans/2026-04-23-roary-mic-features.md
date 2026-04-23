@@ -1,0 +1,157 @@
+# Roary Mic — Remaining Features (2026-04-23)
+
+## Overview
+
+Personal fork of cjpais/Handy (branch `feat/rules-review-ai-mode`, repo `danielharunjen-glitch/roary-mic`, app installed at `/Applications/Handy.app`) needs four more features shipped. The corrections feature is complete and verified; the References feature backend + UI is written but unbuilt. This plan covers the remaining work.
+
+## Context (from discovery)
+
+**Relevant files already in play:**
+- `src-tauri/src/managers/history.rs` — correction engine, `Correction` struct now has `kind` field (`"correction"` | `"reference"`), migration #5 adds the column
+- `src-tauri/src/commands/history.rs` — `insert_correction` accepts optional `kind`, `list_corrections` filters by `kind`
+- `src-tauri/src/actions.rs` — `TranscribeAction.ai_mode: bool`; `handle_ai_mode_completion` does audio → transcribe → screenshot → LLM → paste
+- `src-tauri/src/llm_client.rs` — `send_chat_completion_multimodal` supports image_url content blocks for Anthropic/OpenAI
+- `src-tauri/src/screenshot.rs` — `capture_primary_display_png()` via xcap, downscales to 1280px
+- `src-tauri/src/settings.rs` — `AppSettings.ai_mode_{enabled,provider_id,model,prompt,include_screenshot}`, default `ai_mode` shortcut binding is `cmd+shift+space`
+- `src-tauri/tauri.conf.json` — `productName: "Handy"`, `identifier: "com.pais.handy"`, `mainBinaryName` not set, icons under `icons/`
+- `src/components/Sidebar.tsx` — `SECTIONS_CONFIG` now registers `corrections`, `references`, `aiMode`
+- `src/components/settings/references/ReferencesSettings.tsx` — new, written but not yet built
+- `src/i18n/locales/en/translation.json` — has `sidebar.references`, `settings.references.*`, `settings.aiMode.*`
+- `src/lib/corrections.ts`, `src/lib/ai-mode.ts` — command shims
+- `src/bindings.ts` — manually augmented with `ai_mode_*` AppSettings fields
+
+**Verified:** `cargo test --lib managers::history::` → 16 pass (before Task 13 migration); current uncommitted state has 17 including Task 13 adjustments. `bun run tauri build --bundles app` succeeded on a previous run (output at `src-tauri/target/release/bundle/macos/Handy.app`).
+
+**Uncommitted files** (from `git status`): Task 13 (References) backend + UI + sidebar + i18n changes. Must be committed as part of this plan.
+
+## Development Approach
+
+- **Testing approach**: Regular (code, then tests) — mirrors the existing TranscribeAction test patterns in this repo
+- Each task ends with its own verification before the next begins
+- Never skip the test checkbox
+- Run `cargo test --lib` and `bun x tsc --noEmit && bun run lint` after backend or frontend changes respectively
+- **Rebuild + reinstall** (`bun run tauri build --bundles app` then copy to `/Applications/Handy.app`) is deferred to the final verification task — do it ONCE after everything is stable
+
+## Testing Strategy
+
+- **Unit tests**: Rust unit tests live inside `src-tauri/src/managers/history.rs` and similar `#[cfg(test)]` modules. Add tests co-located with new logic.
+- **Integration**: No e2e harness for UI in Handy; rely on type-checking (`tsc --noEmit`) and ESLint as the frontend safety net.
+- **Manual smoke test** in final verification: quit + relaunch `/Applications/Handy.app`, exercise new features.
+
+## Progress Tracking
+
+- Mark completed items with `[x]` immediately when done
+- Add newly discovered tasks with ➕ prefix
+- Document blockers with ⚠️ prefix
+- Update plan if scope shifts
+
+## Implementation Steps
+
+### Task 1: Finish + ship the References feature (Task 13 in TaskList)
+
+The code is already written but unbuilt. Seal it off before moving on.
+
+- [x] run `cargo test --lib managers::history::` — must pass (the `kind` column migration + updated helpers should already be green)
+- [x] run `bun x tsc --noEmit` — verify `ReferencesSettings.tsx` compiles against the current shim types
+- [x] run `bun run lint` — ESLint clean
+- [x] ensure `correctionCommands.listCorrections` in `src/lib/corrections.ts` correctly passes `kind: null` when omitted (check Tauri command signature match with backend `Option<String>`)
+- [x] manual-verify plan: after rebuild, launch app → sidebar should show a new "References" entry with a 📖 icon between Corrections and AI Mode
+- [x] write tests: an integration-style Rust test in `managers/history.rs#tests` that inserts a correction with `kind="reference"`, calls `list_corrections(10, Some("reference"))`, and asserts the single row comes back (the existing in-memory `setup_conn()` doesn't create the `corrections` table yet — extend it or add a new `setup_corrections_conn()` fixture)
+- [x] run tests
+
+### Task 2: Rebrand Handy → Roary Mic
+
+User-visible strings, not the Rust crate name.
+
+- [x] `src-tauri/tauri.conf.json`: change `productName` `"Handy"` → `"Roary Mic"`; change `identifier` `"com.pais.handy"` → `"com.harunjen.roarymic"`; leave `mainBinaryName` unset (binary stays `handy`)
+- [x] `src-tauri/tauri.conf.json`: remove Windows `signCommand` (references `CJ-Signing` cert we don't have); set `bundle.windows.signCommand` to `null` or delete
+- [x] `package.json`: update `productName` if present; leave Rust `package.name` in `Cargo.toml` alone (many files `use handy::*`) — no `productName` field in `package.json`, left untouched; `name` stays `handy-app`
+- [x] `src/components/icons/HandyTextLogo.tsx`: inspect — the SVG likely contains the literal "Handy" text. Swap text to "Roary Mic" while keeping the same logo styling. If the SVG uses a font-based text node, update the string; if it's pre-rasterized paths, add a small text overlay as an interim measure. — replaced pre-rasterized `<path>` logo with a font-based `<text>` node rendering `Roary Mic`, keeping the existing `logo-primary` class so theme colors still apply.
+- [x] grep `src/` for literal `"Handy"` in JSX/TSX (not imports) — replace user-facing ones with `"Roary Mic"`. Skip comments and imports like `HandyHand`, `HandyTextLogo` (internal names). — no user-facing JSX literals required changing; the only remaining `"Handy"` label is `KeyboardImplementationSelector.tsx`'s `"Handy Keys"` which is an internal implementation name paired with the `handy_keys.rs` Rust module (left intact, matches guidance).
+- [x] grep `src/i18n/locales/en/translation.json` for `"Handy"` in any string values, replace with `"Roary Mic"`
+- [x] update `src-tauri/src/tray.rs` / `tray_i18n.rs` tooltip + menu strings that say "Handy" — only `tray.rs::version_label()` hardcoded "Handy"; `tray_i18n.rs` is auto-generated from the locale files so updating `en/translation.json` was sufficient. Also updated `cli.rs` `--help` text and `lib.rs` WebviewWindow title.
+- [x] **record which files changed** so the same rebrand can be applied to the other 19 locales later (out of scope for this task) — files touched this iteration: `src-tauri/tauri.conf.json`, `src-tauri/src/tray.rs`, `src-tauri/src/cli.rs`, `src-tauri/src/lib.rs`, `src/components/icons/HandyTextLogo.tsx`, `src/i18n/locales/en/translation.json`. Locale keys that contained "Handy" and now say "Roary Mic": `settings.permissions.description`, `settings.general.shortcut.title`, `settings.general.autostart.description`, `settings.general.showTrayIcon.description`, `settings.corrections.description`, `settings.corrections.empty`, `settings.general.updateChecks.description`, `settings.about.version.description`, `settings.about.appDataDirectory.description`, `settings.about.supportDevelopment.description`, `settings.about.acknowledgments.whisper.details`, `accessibility.permissionsDescription`, `appLanguage.description` — mirror these across the other 19 locale files in a follow-up.
+- [x] run `cargo fmt --check && bun run lint && bun x tsc --noEmit` — all clean
+- [x] add a test: a Rust test that reads `tauri.conf.json` and asserts `productName == "Roary Mic"` (defensive, catches accidental revert) — `rebrand_tests::tauri_conf_product_name_is_roary_mic` in `src-tauri/src/lib.rs` also asserts the new identifier.
+- [x] ⚠️ Document in plan that the bundle identifier change will invalidate TCC (macOS) permissions — user must re-grant Microphone, Accessibility, Screen Recording on first relaunch after installing the rebuilt app (see Post-Completion section below).
+
+### Task 3: AI mode output options window (paste or speak via ElevenLabs)
+
+When the AI-mode hotkey fires and the LLM replies, instead of auto-pasting, open a small always-on-top window showing the text with two buttons: **Paste** and **Speak**. "Speak" sends the text to ElevenLabs TTS and plays the MP3 through the default audio output.
+
+- [x] add `src-tauri/src/tts.rs`: `fn speak_via_elevenlabs(api_key: &str, voice_id: &str, model_id: &str, text: &str) -> Result<Vec<u8>>` — POST to `https://api.elevenlabs.io/v1/text-to-speech/{voice_id}`, header `xi-api-key`, body `{"text": text, "model_id": model_id}`, return MP3 bytes. Added URL + header builders split out as pure helpers and unit tested.
+- [x] add playback: `tts::play_mp3_blocking` uses the existing `rodio::OutputStreamBuilder::from_default_device()`, decodes via symphonia (already enabled in the git rodio fork)
+- [x] settings.rs: added `AiModeOutputMode` enum (`AutoPaste`/`PromptWindow`, default `PromptWindow`), `elevenlabs_api_keys: SecretMap` with a single `"elevenlabs"` key (so existing debug redaction applies), `elevenlabs_voice_id: String` (default Rachel), `elevenlabs_model_id: String` (default `eleven_turbo_v2_5`)
+- [x] second window registered programmatically in `src-tauri/src/ai_reply.rs::ensure_ai_reply_window` (frameless, always-on-top, 480×320, non-resizable, centered, hidden until needed). Keeping config-driven windows out of `tauri.conf.json` matches the `recording_overlay` pattern already in this repo.
+- [x] `actions.rs::handle_ai_mode_completion`: now branches on `AiModeOutputMode`; for `PromptWindow` it calls `ai_reply::show_ai_reply_window` which emits `ai-mode-reply-ready` then shows the window
+- [x] added commands `ai_reply_show`, `ai_reply_paste`, `ai_reply_speak`, `ai_reply_cancel` in `src-tauri/src/commands/ai_reply.rs` and registered them in `lib.rs`
+- [x] created `src/ai-reply/{index.html,main.tsx,AiReplyWindow.tsx}` — listens for `ai-mode-reply-ready`, renders an editable textarea with Paste (default focus + Enter outside textarea), Speak, and Cancel (Escape) buttons; shows inline error messages from the backend commands
+- [x] updated `vite.config.ts` with a third rollup input `aiReply`
+- [x] `i18n/locales/en/translation.json`: added `settings.aiMode.outputMode.*`, `settings.aiMode.elevenlabs.*`, `aiReplyWindow.*`
+- [x] `AiModeSettings.tsx`: added the output-mode dropdown, ElevenLabs API key (password), voice ID, and model ID inputs, plus link to elevenlabs.io
+- [x] tests: 8 tts tests (URL + header builders, error formatter, empty-input guards) and 2 settings tests (default output mode + redaction of the new key); all 92 lib tests still pass
+- [x] ran `cargo test --lib` (92 pass), `cargo fmt --check` (clean), `bun run lint` (clean), `bun x tsc --noEmit` (clean)
+
+### Task 4: AI mode plugin — Claude Code subprocess provider
+
+Give users a subscription-backed option that shells out to the locally-installed `claude` CLI (Paperclip-style). Zero API key, uses their `claude login` credentials. Only offered when `claude` is on PATH.
+
+- [x] add detection helper in `actions.rs` or a new `src-tauri/src/claude_code.rs`: `fn claude_cli_available() -> Option<PathBuf>` — implemented as `claude_code::claude_cli_available()` using `which`/`where` subprocess (no `which` crate dependency added — keeps Cargo.toml lean)
+- [x] new module `src-tauri/src/claude_code.rs`: `async fn run_claude_code(prompt: &str, image_png: Option<&[u8]>, system_prompt: Option<&str>) -> Result<String>` — spawns `claude -p --output-format stream-json --verbose --dangerously-skip-permissions`, pipes the prompt via stdin, parses the newline-delimited JSON messages, prefers the `type=result` terminal message (falls back to concatenating `type=assistant` text blocks). Image attachment: Claude Code CLI does NOT currently accept image flags (verified via `claude --help`), so when `image_png.is_some()` we prepend a note to the prompt explaining the screenshot was captured but can't be attached. Limitation documented in the source.
+- [x] register a synthetic provider in `settings.rs::default_post_process_providers()`: `id: "claude_code_local"`, `label: "Claude Code (local subscription)"`, `base_url: "claude-code-local://"`, `supports_structured_output: false` — constants `CLAUDE_CODE_LOCAL_PROVIDER_ID` and `CLAUDE_CODE_LOCAL_DEFAULT_MODEL_ID` exported from settings.rs
+- [x] route switcher in `llm_client.rs::send_chat_completion_multimodal`: when `is_claude_code_local(provider)` (matches both id AND `claude-code-local://` URL so a user-renamed custom provider can't accidentally trigger the subprocess), bypass `reqwest` and delegate to `claude_code::run_claude_code`
+- [x] in `AiModeSettings.tsx`: when `providerId === "claude_code_local"`, hide the API key field, show a bordered info card with `settings.aiMode.claudeCode.description` and a docs link (https://docs.claude.com/en/docs/claude-code/overview). Also hides the `base_url` display (it would just say `claude-code-local://`).
+- [x] add a health-check command `check_claude_code_available() -> bool`; frontend calls it on mount (one-shot, cancelled on unmount), disables the `claude_code_local` `<option>` with a tooltip when unavailable, and surfaces a red message inside the info card if the user already has it selected
+- [x] tests: 6 new unit tests in `claude_code::tests` exercising the stream-json parser (prefers `result`, falls back to concat, skips non-text blocks, handles empty/malformed lines, returns None when no assistant content) + 4 routing-switch tests in `llm_client::tests` (matches synthetic provider, rejects mismatched id or URL, rejects regular HTTP providers) + 2 settings tests verifying provider registration and default model wiring
+- [x] run `cargo test && cargo fmt --check && bun run lint && bun x tsc --noEmit` — 104 lib tests pass (up from 98), `cargo fmt --check` clean, ESLint clean, `tsc --noEmit` clean. Cleared one clippy identity-map warning in `claude_code.rs` as a drive-by.
+
+### Task 5: Verify acceptance criteria
+
+- [x] verify all requirements from Overview are implemented — four features (References, Rebrand, AI Reply window, Claude Code provider) present and committed
+- [x] run full test suite: `cargo test --lib` — 104 passed; 0 failed
+- [x] run full lint: `bun run lint` + `bun x tsc --noEmit` — both clean
+- [x] run format check: `cargo fmt --check` + `bun x prettier --check 'src/**/*.{ts,tsx}'` — cargo fmt clean; prettier found 2 files (`AiReplyWindow.tsx`, `AiModeSettings.tsx`) and auto-fixed them; re-run clean
+- [x] build release: `CMAKE_POLICY_VERSION_MINIMUM=3.5 bun run tauri build --bundles app` — bundle produced at `src-tauri/target/release/bundle/macos/Roary Mic.app`; trailing `TAURI_SIGNING_PRIVATE_KEY` updater-signing error is expected and ignorable
+
+### Task 6: Install & commit
+
+- [x] replace `/Applications/Handy.app` (will be `/Applications/Roary Mic.app` after rebrand) with the freshly built bundle — removed both `/Applications/Handy.app` and any prior `/Applications/Roary Mic.app`, then copied the built bundle. Verified `CFBundleIdentifier=com.harunjen.roarymic`, `CFBundleName=Roary Mic`, binary still `handy`.
+- [x] `git add` each changed file explicitly (NEVER `git add -A`) — Tasks 1-5 were already committed individually on prior iterations (see commits 207a37a → 56de15a); this final commit only adds the plan checkbox updates for Task 6.
+- [x] commit with a Conventional Commit header summarizing the four features; include a note about the TCC reset caused by the bundle-id change
+- [x] push to `origin` (roary-mic remote) — existing branch `roary-main`
+
+## Technical Details
+
+**References kind column** — already added in Task 13's uncommitted work:
+```sql
+ALTER TABLE corrections ADD COLUMN kind TEXT NOT NULL DEFAULT 'correction';
+```
+Values: `"correction"` (Whisper edits + manual corrections) | `"reference"` (phrase expansions).
+
+**AI mode output-mode state machine**:
+```
+hotkey pressed → record → transcribe → screenshot → LLM call → reply ready
+  ├─ output_mode == "auto_paste"     → paste directly (current behavior)
+  └─ output_mode == "prompt_window"  → emit event, show ai-reply window
+                                         ├─ user picks Paste  → commands.ai_reply_paste
+                                         ├─ user picks Speak  → commands.ai_reply_speak → ElevenLabs MP3 → rodio
+                                         └─ user picks Cancel → close
+```
+
+**Claude Code subprocess protocol** (Paperclip reference):
+```
+echo "$PROMPT" | claude -p - --output-format stream-json --verbose --dangerously-skip-permissions
+```
+Output is newline-delimited JSON; filter for `type == "assistant"` messages and concatenate their `content` text parts.
+
+## Post-Completion
+
+**Manual verification** (user must do):
+- Quit Handy (tray → Quit)
+- First launch of `/Applications/Roary Mic.app` will prompt for Microphone, Accessibility, and Screen Recording permissions again (new bundle ID = fresh TCC state). Grant all three.
+- Settings → References: add `my email` → `daniel.harunjen@fintech-farm.com`. Dictate "Please email me at my email" — expect the expansion to land in the target app.
+- Settings → AI Mode: enable, pick "Claude Code (local subscription)" if `claude` CLI is logged in; otherwise pick Anthropic + paste API key. Choose output mode "Ask me". Press `⌘⇧Space` and say "summarize what's on screen". The AI Reply window should appear with two buttons.
+- If ElevenLabs key configured, click Speak and confirm audio plays.
+
+**External system updates**:
+- None. This is a personal fork; no upstream PR.

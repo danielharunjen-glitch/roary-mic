@@ -15,6 +15,7 @@
     "postProcessing": "Post Process",
     "history": "History",
     "corrections": "Corrections",
+    "references": "References",
     "aiMode": "AI Mode",
     "debug": "Debug",
     "about": "About"
@@ -102,7 +103,7 @@
     },
     "permissions": {
       "title": "Permissions Required",
-      "description": "Handy needs a couple of permissions to work properly.",
+      "description": "Roary Mic needs a couple of permissions to work properly.",
       "microphone": {
         "title": "Microphone Access",
         "description": "Required to hear your voice for transcription."
@@ -160,7 +161,7 @@
     "general": {
       "title": "General",
       "shortcut": {
-        "title": "Handy Shortcuts",
+        "title": "Roary Mic Shortcuts",
         "description": "Configure keyboard shortcuts to trigger speech-to-text recording",
         "loading": "Loading shortcuts...",
         "none": "No shortcuts configured",
@@ -278,11 +279,11 @@
       },
       "autostart": {
         "label": "Launch on Startup",
-        "description": "Automatically start Handy when you log in to your computer."
+        "description": "Automatically start Roary Mic when you log in to your computer."
       },
       "showTrayIcon": {
         "label": "Show Tray Icon",
-        "description": "Display the Handy icon in the system tray."
+        "description": "Display the Roary Mic icon in the system tray."
       },
       "overlay": {
         "title": "Overlay Position",
@@ -442,9 +443,9 @@
     },
     "corrections": {
       "title": "Corrections",
-      "description": "Phrases that Handy replaces in transcriptions, either learned from edits you make in History or added manually below.",
+      "description": "Phrases that Roary Mic replaces in transcriptions, either learned from edits you make in History or added manually below.",
       "loading": "Loading corrections...",
-      "empty": "No corrections yet. Add one above, or edit a transcription in History to teach Handy a replacement.",
+      "empty": "No corrections yet. Add one above, or edit a transcription in History to teach Roary Mic a replacement.",
       "enable": "Enable correction",
       "disable": "Disable correction",
       "delete": "Delete correction",
@@ -455,6 +456,24 @@
       "addButton": "Add",
       "addError": "Failed to add correction. Please try again.",
       "addMustDiffer": "From and To must be different."
+    },
+    "references": {
+      "title": "References",
+      "description": "Pronounce a phrase and have Roary insert a specific piece of text instead.\nThink of it as voice snippets — say \"my email\" and your actual email address gets typed, so you never have to spell out addresses, phone numbers, or boilerplate out loud.",
+      "exampleTitle": "Example",
+      "exampleBody": "Add the pair  my email → daniel@example.com. Next time you dictate \"Please reply at my email\", Roary pastes \"Please reply at daniel@example.com\".",
+      "loading": "Loading references...",
+      "empty": "No references yet. Add one above — e.g. \"my email\" → your actual email.",
+      "addPhrasePlaceholder": "Phrase to say (e.g. my email)",
+      "addExpansionPlaceholder": "Text to insert (e.g. you@example.com)",
+      "addButton": "Add",
+      "addError": "Failed to add reference. Please try again.",
+      "addMustDiffer": "The phrase and the inserted text must differ.",
+      "enable": "Enable reference",
+      "disable": "Disable reference",
+      "delete": "Delete reference",
+      "toggleError": "Failed to toggle reference. Please try again.",
+      "deleteError": "Failed to delete reference. Please try again."
     },
     "aiMode": {
       "title": "AI Mode",
@@ -479,7 +498,35 @@
       "includeScreenshotLabel": "Attach screenshot",
       "includeScreenshotDescription": "Capture the primary display and send it as visual context. Disable for faster, cheaper requests.",
       "screenshotToggleError": "Failed to change screenshot setting.",
-      "toggleError": "Failed to toggle AI Mode."
+      "toggleError": "Failed to toggle AI Mode.",
+      "outputMode": {
+        "label": "When the reply is ready",
+        "description": "Choose whether the reply is pasted automatically, or opens a window with Paste/Speak options.",
+        "autoPaste": "Paste automatically",
+        "promptWindow": "Ask me (window with Paste/Speak)",
+        "error": "Failed to change output mode."
+      },
+      "elevenlabs": {
+        "sectionTitle": "ElevenLabs (for Speak)",
+        "sectionDescription": "Voice playback uses ElevenLabs text-to-speech. Leave blank to disable Speak.",
+        "apiKeyLabel": "ElevenLabs API Key",
+        "apiKeyPlaceholder": "Paste your ElevenLabs API key",
+        "apiKeyError": "Failed to save ElevenLabs API key.",
+        "voiceLabel": "Voice ID",
+        "voicePlaceholder": "e.g. 21m00Tcm4TlvDq8ikWAM",
+        "voiceHelpText": "Find voice IDs on elevenlabs.io",
+        "voiceError": "Failed to save voice ID.",
+        "modelLabel": "Model ID",
+        "modelPlaceholder": "eleven_turbo_v2_5",
+        "modelHelpText": "Default works well; override for other ElevenLabs models.",
+        "modelError": "Failed to save model ID."
+      },
+      "claudeCode": {
+        "description": "Uses the local `claude` CLI so requests are billed against your Claude subscription. No API key required — run `claude login` first.",
+        "docsLink": "Claude Code documentation",
+        "unavailableSuffix": "not installed",
+        "unavailableTooltip": "The `claude` CLI was not found on PATH. Install Claude Code and run `claude login` to enable this option."
+      }
     },
     "debug": {
       "title": "Debug",
@@ -493,7 +540,7 @@
       },
       "updateChecks": {
         "label": "Check for Updates",
-        "description": "Automatically check for new versions of Handy"
+        "description": "Automatically check for new versions of Roary Mic"
       },
       "soundTheme": {
         "label": "Sound Theme",
@@ -561,11 +608,11 @@
       "title": "About",
       "version": {
         "title": "Version",
-        "description": "Current version of Handy"
+        "description": "Current version of Roary Mic"
       },
       "appDataDirectory": {
         "title": "App Data Directory",
-        "description": "Location where Handy stores its data"
+        "description": "Location where Roary Mic stores its data"
       },
       "sourceCode": {
         "title": "Source Code",
@@ -574,7 +621,7 @@
       },
       "supportDevelopment": {
         "title": "Support Development",
-        "description": "Help us continue building Handy",
+        "description": "Help us continue building Roary Mic",
         "button": "Donate"
       },
       "acknowledgments": {
@@ -582,7 +629,7 @@
         "whisper": {
           "title": "Whisper.cpp",
           "description": "High-performance inference of OpenAI's Whisper automatic speech recognition model",
-          "details": "Handy uses Whisper.cpp for fast, local speech-to-text processing. Thanks to the amazing work by Georgi Gerganov and contributors."
+          "details": "Roary Mic uses Whisper.cpp for fast, local speech-to-text processing. Thanks to the amazing work by Georgi Gerganov and contributors."
         }
       }
     }
@@ -628,7 +675,7 @@
   },
   "accessibility": {
     "permissionsRequired": "Accessibility Permissions Required",
-    "permissionsDescription": "Handy needs accessibility permissions to type transcribed text.",
+    "permissionsDescription": "Roary Mic needs accessibility permissions to type transcribed text.",
     "openSettings": "Open System Settings",
     "dismiss": "Dismiss"
   },
@@ -651,10 +698,21 @@
   },
   "appLanguage": {
     "title": "Application Language",
-    "description": "Change the language of the Handy interface"
+    "description": "Change the language of the Roary Mic interface"
   },
   "overlay": {
     "transcribing": "Transcribing...",
     "processing": "Processing..."
+  },
+  "aiReplyWindow": {
+    "title": "AI Reply",
+    "subtitle": "Press Enter to paste, Esc to cancel",
+    "textAreaLabel": "AI reply text",
+    "paste": "Paste",
+    "speak": "Speak",
+    "speaking": "Speaking…",
+    "cancel": "Cancel",
+    "pasteError": "Failed to paste reply.",
+    "speakError": "Failed to generate speech."
   }
 }

@@ -44,6 +44,10 @@ static MIGRATIONS: &[M] = &[
         CREATE INDEX IF NOT EXISTS idx_corrections_enabled_created
             ON corrections(enabled, created_at DESC);",
     ),
+    // Add a `kind` column so the UI can split corrections (Whisper mistakes)
+    // from references (phrase → expansion, e.g. "my email" → "you@example.com").
+    // Both kinds share the same substitution engine.
+    M::up("ALTER TABLE corrections ADD COLUMN kind TEXT NOT NULL DEFAULT 'correction';"),
 ];
 
 #[derive(Clone, Debug, Serialize, Deserialize, Type)]
@@ -89,13 +93,20 @@ pub struct Correction {
     pub history_id: Option<i64>,
     pub created_at: i64,
     pub enabled: bool,
+    /// `"correction"` (default) for Whisper-mistake fixes, `"reference"` for
+    /// phrase expansions (say "my email" → insert actual email).
+    pub kind: String,
 }
 
 /// Reduce a before/after pair to the minimal differing span by tokenizing on
-/// whitespace and stripping the common prefix and suffix. Returns `None` when
-/// the diff is a pure insertion or deletion (no useful find/replace).
+/// whitespace and stripping the common prefix and suffix. Falls back to the
+/// full strings when the diff is a pure insertion or deletion — that way every
+/// edit produces a usable find/replace rule.
 pub fn extract_correction_pair(original: &str, corrected: &str) -> Option<(String, String)> {
-    if original == corrected {
+    let original = original.trim();
+    let corrected = corrected.trim();
+
+    if original == corrected || original.is_empty() || corrected.is_empty() {
         return None;
     }
 
@@ -123,17 +134,22 @@ pub fn extract_correction_pair(original: &str, corrected: &str) -> Option<(Strin
     let orig_mid = &orig[prefix..orig.len() - suffix];
     let corr_mid = &corr[prefix..corr.len() - suffix];
 
-    if orig_mid.is_empty() || corr_mid.is_empty() {
-        return None;
+    // Prefer a narrow single-span rule when available.
+    if !orig_mid.is_empty() && !corr_mid.is_empty() {
+        return Some((orig_mid.join(" "), corr_mid.join(" ")));
     }
 
-    Some((orig_mid.join(" "), corr_mid.join(" ")))
+    // Fallback: record the full-string pair. Matches the exact phrase on
+    // future transcriptions but at least guarantees that an edit is never
+    // silently lost.
+    Some((original.to_string(), corrected.to_string()))
 }
 
-/// Apply enabled corrections to `text` in the order given. Each correction is
-/// matched case-sensitively. Word boundaries are applied only at ends of the
-/// pattern that start/end with a word character — so "OMW" matches as a word
-/// but a pattern like "!!!" matches literally. Later corrections can see the
+/// Apply enabled corrections to `text` in the order given. Matching is
+/// case-insensitive so `halo → hello` also rewrites `Halo` at a sentence
+/// start. Word boundaries are applied only at ends of the pattern that
+/// start/end with a word character — so "OMW" matches as a word but a
+/// pattern like "!!!" matches literally. Later corrections can see the
 /// output of earlier ones.
 pub fn apply_corrections(text: &str, corrections: &[Correction]) -> String {
     let mut result = text.to_string();
@@ -155,12 +171,15 @@ pub fn apply_corrections(text: &str, corrections: &[Correction]) -> String {
             .map(is_word_char)
             .unwrap_or(false);
         let escaped = regex::escape(&c.original_text);
-        let pattern = match (starts_word, ends_word) {
+        let body = match (starts_word, ends_word) {
             (true, true) => format!(r"\b{}\b", escaped),
             (true, false) => format!(r"\b{}", escaped),
             (false, true) => format!(r"{}\b", escaped),
             (false, false) => escaped,
         };
+        // `(?i)` flag → case-insensitive matching. Replacement text is kept
+        // verbatim, so users get exactly what they typed in the edit.
+        let pattern = format!("(?i){}", body);
         match Regex::new(&pattern) {
             Ok(re) => {
                 result = re
@@ -314,6 +333,9 @@ impl HistoryManager {
             history_id: row.get("history_id")?,
             created_at: row.get("created_at")?,
             enabled: row.get::<_, i64>("enabled")? != 0,
+            kind: row
+                .get::<_, Option<String>>("kind")?
+                .unwrap_or_else(|| "correction".to_string()),
         })
     }
 
@@ -823,8 +845,8 @@ impl HistoryManager {
         if let Some((orig, corr)) = extract_correction_pair(&prior_text, &new_text) {
             let ts = Utc::now().timestamp();
             conn.execute(
-                "INSERT INTO corrections (original_text, corrected_text, history_id, created_at, enabled)
-                 VALUES (?1, ?2, ?3, ?4, 1)",
+                "INSERT INTO corrections (original_text, corrected_text, history_id, created_at, enabled, kind)
+                 VALUES (?1, ?2, ?3, ?4, 1, 'correction')",
                 params![orig, corr, id, ts],
             )?;
             debug!(
@@ -857,17 +879,42 @@ impl HistoryManager {
     }
 
     /// List recent corrections (most recent first), capped at `limit` rows.
-    pub fn list_corrections(&self, limit: usize) -> Result<Vec<Correction>> {
+    /// Pass `Some(kind)` to filter to a specific kind ("correction" or
+    /// "reference"); pass `None` to get every kind.
+    pub fn list_corrections(&self, limit: usize, kind: Option<&str>) -> Result<Vec<Correction>> {
         let conn = self.get_connection()?;
-        let mut stmt = conn.prepare(
-            "SELECT id, original_text, corrected_text, history_id, created_at, enabled
-             FROM corrections
-             ORDER BY created_at DESC
-             LIMIT ?1",
-        )?;
-        let rows = stmt
-            .query_map(params![limit as i64], Self::map_correction)?
-            .collect::<std::result::Result<Vec<_>, _>>()?;
+        Self::list_corrections_with_conn(&conn, limit, kind)
+    }
+
+    fn list_corrections_with_conn(
+        conn: &Connection,
+        limit: usize,
+        kind: Option<&str>,
+    ) -> Result<Vec<Correction>> {
+        let rows: Vec<Correction> = if let Some(k) = kind {
+            let mut stmt = conn.prepare(
+                "SELECT id, original_text, corrected_text, history_id, created_at, enabled, kind
+                 FROM corrections
+                 WHERE kind = ?1
+                 ORDER BY created_at DESC
+                 LIMIT ?2",
+            )?;
+            let rows = stmt
+                .query_map(params![k, limit as i64], Self::map_correction)?
+                .collect::<std::result::Result<Vec<_>, _>>()?;
+            rows
+        } else {
+            let mut stmt = conn.prepare(
+                "SELECT id, original_text, corrected_text, history_id, created_at, enabled, kind
+                 FROM corrections
+                 ORDER BY created_at DESC
+                 LIMIT ?1",
+            )?;
+            let rows = stmt
+                .query_map(params![limit as i64], Self::map_correction)?
+                .collect::<std::result::Result<Vec<_>, _>>()?;
+            rows
+        };
         Ok(rows)
     }
 
@@ -909,26 +956,32 @@ impl HistoryManager {
     }
 
     /// Insert a user-authored correction that isn't derived from an edit.
+    /// `kind` should be "correction" (default) or "reference".
     pub fn insert_correction(
         &self,
         original_text: String,
         corrected_text: String,
+        kind: Option<String>,
     ) -> Result<Correction> {
         let original_text = original_text.trim().to_string();
         let corrected_text = corrected_text.trim().to_string();
+        let kind = kind.unwrap_or_else(|| "correction".to_string());
         if original_text.is_empty() {
             return Err(anyhow!("Original text must not be empty"));
         }
         if original_text == corrected_text {
             return Err(anyhow!("Original and corrected text must differ"));
         }
+        if kind != "correction" && kind != "reference" {
+            return Err(anyhow!("Unknown correction kind: {}", kind));
+        }
 
         let conn = self.get_connection()?;
         let created_at = Utc::now().timestamp();
         conn.execute(
-            "INSERT INTO corrections (original_text, corrected_text, history_id, created_at, enabled)
-             VALUES (?1, ?2, NULL, ?3, 1)",
-            params![&original_text, &corrected_text, created_at],
+            "INSERT INTO corrections (original_text, corrected_text, history_id, created_at, enabled, kind)
+             VALUES (?1, ?2, NULL, ?3, 1, ?4)",
+            params![&original_text, &corrected_text, created_at, &kind],
         )?;
         let id = conn.last_insert_rowid();
 
@@ -939,6 +992,7 @@ impl HistoryManager {
             history_id: None,
             created_at,
             enabled: true,
+            kind,
         })
     }
 
@@ -1047,6 +1101,7 @@ mod tests {
             history_id: None,
             created_at: 0,
             enabled: true,
+            kind: "correction".to_string(),
         }
     }
 
@@ -1083,15 +1138,26 @@ mod tests {
     }
 
     #[test]
-    fn extract_correction_pair_pure_insertion_returns_none() {
-        // Nothing replaced — we can't form a find/replace rule from an
-        // insertion alone.
-        assert_eq!(extract_correction_pair("hello", "hello world"), None);
+    fn extract_correction_pair_pure_insertion_falls_back_to_full_pair() {
+        // Insertion alone can't be narrowed — fall back to the full-string
+        // pair so the edit isn't silently discarded.
+        assert_eq!(
+            extract_correction_pair("hello", "hello world"),
+            Some(("hello".to_string(), "hello world".to_string()))
+        );
     }
 
     #[test]
-    fn extract_correction_pair_pure_deletion_returns_none() {
-        assert_eq!(extract_correction_pair("hello world", "hello"), None);
+    fn extract_correction_pair_pure_deletion_falls_back_to_full_pair() {
+        assert_eq!(
+            extract_correction_pair("hello world", "hello"),
+            Some(("hello world".to_string(), "hello".to_string()))
+        );
+    }
+
+    #[test]
+    fn extract_correction_pair_identical_after_trim_returns_none() {
+        assert_eq!(extract_correction_pair("  hello  ", "hello"), None);
     }
 
     #[test]
@@ -1107,10 +1173,10 @@ mod tests {
     }
 
     #[test]
-    fn apply_corrections_case_sensitive() {
+    fn apply_corrections_is_case_insensitive() {
         let rules = vec![correction(1, "halo", "hello")];
-        // "Halo" should not be rewritten — case-sensitive by design.
-        assert_eq!(apply_corrections("Halo halo", &rules), "Halo hello");
+        // Both "Halo" and "halo" should match regardless of case.
+        assert_eq!(apply_corrections("Halo halo", &rules), "hello hello");
     }
 
     #[test]
@@ -1141,5 +1207,64 @@ mod tests {
         let rules = vec![correction(1, "", "anything")];
         // Empty pattern would be pathological — the filter should drop it.
         assert_eq!(apply_corrections("halo", &rules), "halo");
+    }
+
+    fn setup_corrections_conn() -> Connection {
+        let conn = Connection::open_in_memory().expect("open in-memory db");
+        conn.execute_batch(
+            "CREATE TABLE corrections (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                original_text TEXT NOT NULL,
+                corrected_text TEXT NOT NULL,
+                history_id INTEGER,
+                created_at INTEGER NOT NULL,
+                enabled INTEGER NOT NULL DEFAULT 1,
+                kind TEXT NOT NULL DEFAULT 'correction'
+            );",
+        )
+        .expect("create corrections table");
+        conn
+    }
+
+    fn insert_correction_row(
+        conn: &Connection,
+        original: &str,
+        corrected: &str,
+        created_at: i64,
+        kind: &str,
+    ) {
+        conn.execute(
+            "INSERT INTO corrections (original_text, corrected_text, history_id, created_at, enabled, kind)
+             VALUES (?1, ?2, NULL, ?3, 1, ?4)",
+            params![original, corrected, created_at, kind],
+        )
+        .expect("insert correction row");
+    }
+
+    #[test]
+    fn list_corrections_filters_to_reference_kind() {
+        let conn = setup_corrections_conn();
+        // Mix kinds: two corrections and one reference.
+        insert_correction_row(&conn, "halo", "hello", 100, "correction");
+        insert_correction_row(&conn, "my email", "daniel@example.com", 200, "reference");
+        insert_correction_row(&conn, "omw", "on my way", 300, "correction");
+
+        let refs = HistoryManager::list_corrections_with_conn(&conn, 10, Some("reference"))
+            .expect("list references");
+        assert_eq!(refs.len(), 1, "expected exactly one reference row");
+        assert_eq!(refs[0].original_text, "my email");
+        assert_eq!(refs[0].corrected_text, "daniel@example.com");
+        assert_eq!(refs[0].kind, "reference");
+
+        let corrs = HistoryManager::list_corrections_with_conn(&conn, 10, Some("correction"))
+            .expect("list corrections");
+        assert_eq!(corrs.len(), 2, "expected two correction rows");
+        // Sorted newest-first: "omw" (300) comes before "halo" (100).
+        assert_eq!(corrs[0].original_text, "omw");
+        assert_eq!(corrs[1].original_text, "halo");
+
+        let all =
+            HistoryManager::list_corrections_with_conn(&conn, 10, None).expect("list all kinds");
+        assert_eq!(all.len(), 3);
     }
 }

@@ -7,6 +7,7 @@ export { AboutSettings } from "./about/AboutSettings";
 export { PostProcessingSettings } from "./post-processing/PostProcessingSettings";
 export { ModelsSettings } from "./models/ModelsSettings";
 export { CorrectionsSettings } from "./corrections/CorrectionsSettings";
+export { ReferencesSettings } from "./references/ReferencesSettings";
 export { AiModeSettings } from "./ai-mode/AiModeSettings";
 
 // Individual setting components

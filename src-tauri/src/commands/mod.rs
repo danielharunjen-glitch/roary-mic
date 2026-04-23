@@ -1,3 +1,4 @@
+pub mod ai_reply;
 pub mod audio;
 pub mod history;
 pub mod models;
@@ -125,6 +126,16 @@ pub fn check_apple_intelligence_available() -> bool {
     {
         false
     }
+}
+
+/// Check if the `claude` CLI is installed on the user's PATH.
+/// Called by the frontend when the AI-mode provider selector renders so the
+/// "Claude Code (local subscription)" option can be disabled with an
+/// explanatory tooltip when the CLI is missing.
+#[specta::specta]
+#[tauri::command]
+pub fn check_claude_code_available() -> bool {
+    crate::claude_code::claude_cli_available().is_some()
 }
 
 /// Try to initialize Enigo (keyboard/mouse simulation).

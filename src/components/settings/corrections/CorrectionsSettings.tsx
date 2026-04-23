@@ -13,6 +13,7 @@ import {
 } from "@/lib/corrections";
 import { formatDateTime } from "@/utils/dateFormat";
 import { useSettings } from "@/hooks/useSettings";
+import { SectionHeader } from "@/components/settings/SectionHeader";
 
 const IconButton: React.FC<{
   onClick: () => void;
@@ -182,26 +183,19 @@ export const CorrectionsSettings: React.FC = () => {
   };
 
   return (
-    <div className="max-w-3xl w-full mx-auto space-y-6">
-      <div className="space-y-2">
-        <div className="px-4">
-          <h2 className="text-xs font-medium text-mid-gray uppercase tracking-wide">
-            {t("settings.corrections.title")}
-          </h2>
-          <p className="text-xs text-mid-gray mt-1">
-            {t("settings.corrections.description")}
-          </p>
-        </div>
-
-        <div className="bg-background border border-mid-gray/20 rounded-lg p-4 space-y-3">
+    <div className="max-w-3xl w-full mx-auto pb-12">
+      <SectionHeader
+        number="05"
+        title={t("settings.corrections.title")}
+        description={t("settings.corrections.description")}
+      />
+      <div className="space-y-6">
+        <div>
           <ToggleSwitch
             checked={autoCaptureEnabled}
             onChange={handleAutoCaptureToggle}
-            label={t("autoCapture.toastTitle")}
-            description={t("autoCapture.toastBody", {
-              original: "pasted",
-              corrected: "edited",
-            })}
+            label={t("autoCapture.settingLabel")}
+            description={t("autoCapture.settingDescription")}
             descriptionMode="inline"
           />
           {pending.length > 0 && (

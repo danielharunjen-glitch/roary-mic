@@ -5,13 +5,21 @@ interface TextareaProps
   variant?: "default" | "compact";
 }
 
+/**
+ * Contemporary-editorial textarea. Hairline-bordered (1px all sides —
+ * stronger than inputs because textareas benefit from a defined area),
+ * accent on focus, subtle fill on hover.
+ */
 export const Textarea: React.FC<TextareaProps> = ({
   className = "",
   variant = "default",
   ...props
 }) => {
-  const baseClasses =
-    "px-2 py-1 text-sm font-semibold bg-mid-gray/10 border border-mid-gray/80 rounded-md text-start transition-[background-color,border-color] duration-150 hover:bg-logo-primary/10 hover:border-logo-primary focus:outline-none focus:bg-logo-primary/10 focus:border-logo-primary resize-y";
+  const base =
+    "w-full bg-transparent text-[13px] tracking-tight outline-none " +
+    "border rounded-xs transition-[border-color,background-color] duration-200 " +
+    "placeholder:text-muted placeholder:opacity-70 resize-y " +
+    "hover:bg-ink/[0.02] focus:border-accent focus:bg-transparent";
 
   const variantClasses = {
     default: "px-3 py-2 min-h-[100px]",
@@ -20,7 +28,8 @@ export const Textarea: React.FC<TextareaProps> = ({
 
   return (
     <textarea
-      className={`${baseClasses} ${variantClasses[variant]} ${className}`}
+      className={`${base} ${variantClasses[variant]} ${className}`}
+      style={{ borderColor: "var(--color-rule)" }}
       {...props}
     />
   );

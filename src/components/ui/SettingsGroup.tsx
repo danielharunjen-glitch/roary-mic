@@ -6,26 +6,61 @@ interface SettingsGroupProps {
   children: React.ReactNode;
 }
 
+/**
+ * Contemporary-editorial settings group.
+ *
+ * No outer border, no rounded card. Title renders as a small-caps mono
+ * label; children are separated by a hairline rule. The group itself is
+ * a vertical stack with generous top margin to establish rhythm between
+ * sections.
+ */
 export const SettingsGroup: React.FC<SettingsGroupProps> = ({
   title,
   description,
   children,
 }) => {
   return (
-    <div className="space-y-2">
+    <section className="mt-4 first:mt-0">
       {title && (
-        <div className="px-4">
-          <h2 className="text-xs font-medium text-mid-gray uppercase tracking-wide">
+        <div className="px-6 pb-3">
+          <h3
+            className="label-mono"
+            style={{ color: "var(--color-muted)" }}
+          >
             {title}
-          </h2>
+          </h3>
           {description && (
-            <p className="text-xs text-mid-gray mt-1">{description}</p>
+            <p
+              className="text-[12px] leading-[1.5] mt-1.5 max-w-[52ch]"
+              style={{ color: "var(--color-muted)" }}
+            >
+              {description}
+            </p>
           )}
         </div>
       )}
-      <div className="bg-background border border-mid-gray/20 rounded-lg overflow-visible">
-        <div className="divide-y divide-mid-gray/20">{children}</div>
+      <div
+        style={{
+          borderTop: "1px solid var(--color-rule)",
+        }}
+      >
+        <div className="divide-y" style={{ borderColor: "var(--color-rule)" }}>
+          {React.Children.map(children, (child, idx) => (
+            <div
+              key={idx}
+              style={{
+                borderBottom:
+                  idx ===
+                  (Array.isArray(children) ? children.length - 1 : 0)
+                    ? "none"
+                    : "1px solid var(--color-rule)",
+              }}
+            >
+              {child}
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
+    </section>
   );
 };

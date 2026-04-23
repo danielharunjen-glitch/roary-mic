@@ -10,6 +10,9 @@ export { CorrectionsSettings } from "./corrections/CorrectionsSettings";
 export { ReferencesSettings } from "./references/ReferencesSettings";
 export { AiModeSettings } from "./ai-mode/AiModeSettings";
 
+// Shared layout primitives
+export { SectionHeader } from "./SectionHeader";
+
 // Individual setting components
 export { MicrophoneSelector } from "./MicrophoneSelector";
 export { ClamshellMicrophoneSelector } from "./ClamshellMicrophoneSelector";

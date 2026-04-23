@@ -11,8 +11,6 @@ import {
   Cpu,
   Replace,
 } from "lucide-react";
-import HandyTextLogo from "./icons/HandyTextLogo";
-import HandyHand from "./icons/HandyHand";
 import { useSettings } from "../hooks/useSettings";
 import {
   GeneralSettings,
@@ -47,7 +45,7 @@ interface SectionConfig {
 export const SECTIONS_CONFIG = {
   general: {
     labelKey: "sidebar.general",
-    icon: HandyHand,
+    icon: Cog,
     component: GeneralSettings,
     enabled: () => true,
   },
@@ -112,6 +110,8 @@ interface SidebarProps {
   onSectionChange: (section: SidebarSection) => void;
 }
 
+const APP_VERSION = "0.8.2";
+
 export const Sidebar: React.FC<SidebarProps> = ({
   activeSection,
   onSectionChange,
@@ -124,34 +124,110 @@ export const Sidebar: React.FC<SidebarProps> = ({
     .map(([id, config]) => ({ id: id as SidebarSection, ...config }));
 
   return (
-    <div className="flex flex-col w-40 h-full border-e border-mid-gray/20 items-center px-2">
-      <HandyTextLogo width={120} className="m-4" />
-      <div className="flex flex-col w-full items-center gap-1 pt-2 border-t border-mid-gray/20">
-        {availableSections.map((section) => {
+    <aside className="flex flex-col w-[200px] h-full relative">
+      {/* Right-edge hairline divider */}
+      <div
+        className="absolute top-0 right-0 bottom-0 w-px bg-rule"
+        style={{ transform: "scaleX(0.5)", transformOrigin: "right" }}
+      />
+
+      {/* Brand nameplate */}
+      <div className="px-6 pt-7 pb-5">
+        {/* eslint-disable i18next/no-literal-string */}
+        <div className="leading-none">
+          <span className="font-display italic text-[28px] tracking-tight" style={{ color: "var(--color-accent)" }}>Roary</span>
+          <span className="text-[28px] tracking-tight font-sans font-light ml-[2px]">Mic</span>
+        </div>
+        {/* eslint-enable i18next/no-literal-string */}
+        <div
+          className="label-mono mt-2"
+          style={{ color: "var(--color-muted)" }}
+        >
+          {t("sidebar.tagline", "Speak · Type · Send")}
+        </div>
+      </div>
+
+      <div
+        className="mx-6 mb-4"
+        style={{
+          height: "1px",
+          background: "var(--color-rule)",
+          transform: "scaleY(0.5)",
+          transformOrigin: "top",
+        }}
+      />
+
+      {/* Section list */}
+      <nav className="flex flex-col gap-px px-2 flex-1 overflow-y-auto">
+        {availableSections.map((section, index) => {
           const Icon = section.icon;
           const isActive = activeSection === section.id;
+          const sectionNumber = String(index + 1).padStart(2, "0");
 
           return (
-            <div
+            <button
               key={section.id}
-              className={`flex gap-2 items-center p-2 w-full rounded-lg cursor-pointer transition-colors ${
-                isActive
-                  ? "bg-logo-primary/80"
-                  : "hover:bg-mid-gray/20 hover:opacity-100 opacity-85"
-              }`}
+              type="button"
               onClick={() => onSectionChange(section.id)}
+              className={`group relative flex items-center gap-3 py-2 pl-5 pr-3 text-left cursor-pointer transition-all duration-200 rounded-sm ${
+                isActive ? "" : "hover:bg-ink/[0.03]"
+              }`}
+              style={{
+                color: isActive ? "var(--color-ink)" : "var(--color-muted)",
+              }}
             >
-              <Icon width={24} height={24} className="shrink-0" />
-              <p
-                className="text-sm font-medium truncate"
+              {/* Active-state left accent bar */}
+              {isActive && (
+                <span
+                  aria-hidden
+                  className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-full"
+                  style={{ background: "var(--color-accent)" }}
+                />
+              )}
+
+              <span
+                className="font-mono text-[10px] tracking-widest tabular-nums shrink-0 transition-opacity"
+                style={{
+                  opacity: isActive ? 0.65 : 0.35,
+                }}
+              >
+                {sectionNumber}
+              </span>
+
+              <Icon width={14} height={14} className="shrink-0 opacity-70" />
+
+              <span
+                className="text-[13px] tracking-tight font-medium truncate transition-opacity"
+                style={{
+                  opacity: isActive ? 1 : 0.9,
+                }}
                 title={t(section.labelKey)}
               >
                 {t(section.labelKey)}
-              </p>
-            </div>
+              </span>
+            </button>
           );
         })}
+      </nav>
+
+      {/* Footer — lion sigil + version */}
+      <div
+        className="px-6 py-4 flex items-center justify-between"
+        style={{
+          borderTop: "1px solid var(--color-rule)",
+        }}
+      >
+        <span
+          className="text-[18px] select-none"
+          style={{ opacity: 0.35 }}
+          aria-hidden
+          title="Roary Mic"
+        >
+          🦁
+        </span>
+        {/* eslint-disable-next-line i18next/no-literal-string */}
+        <span className="font-mono text-[10px] tracking-wider" style={{ color: "var(--color-muted)" }}>v{APP_VERSION}</span>
       </div>
-    </div>
+    </aside>
   );
 };

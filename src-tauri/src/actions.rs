@@ -446,7 +446,11 @@ async fn handle_ai_mode_completion(
         }
     };
 
-    if settings.ai_mode_model.trim().is_empty() {
+    // The local Claude Code CLI ignores the model argument and images, so
+    // neither the empty-model guard nor the screenshot capture apply.
+    let is_claude_code_local = crate::llm_client::is_claude_code_local(&provider);
+
+    if !is_claude_code_local && settings.ai_mode_model.trim().is_empty() {
         let _ = ah.emit(
             "ai-mode-error",
             "AI mode: select a model in Settings → AI Mode.",
@@ -464,7 +468,11 @@ async fn handle_ai_mode_completion(
 
     // Capture a screenshot on a blocking thread so we don't stall the async
     // runtime. Failures here are non-fatal — we fall back to text-only.
-    let screenshot_png: Option<Vec<u8>> = if settings.ai_mode_include_screenshot {
+    // Skip entirely for Claude Code (local) — the CLI can't receive images,
+    // so we avoid the Screen Recording permission prompt and the wasted cost.
+    let screenshot_png: Option<Vec<u8>> = if settings.ai_mode_include_screenshot
+        && !is_claude_code_local
+    {
         match tauri::async_runtime::spawn_blocking(crate::screenshot::capture_primary_display_png)
             .await
         {

@@ -3,22 +3,34 @@ use crate::settings::get_settings;
 use crate::tts;
 use crate::utils;
 use log::{debug, error};
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
 
 #[tauri::command]
 #[specta::specta]
-pub fn ai_reply_paste(app: AppHandle, text: String) -> Result<(), String> {
-    hide_ai_reply_window(&app);
+pub async fn ai_reply_paste(app: AppHandle, text: String) -> Result<(), String> {
+    // Hop to the main thread — Enigo paste requires it on macOS. Use a
+    // oneshot so the paste result is awaited and returned through the command
+    // Result; otherwise the window would be hidden with the user believing the
+    // paste succeeded while it silently failed.
+    let (tx, rx) = tokio::sync::oneshot::channel::<Result<(), String>>();
     let ah = app.clone();
-    // Hop to the main thread — Enigo paste requires it on macOS.
-    app.run_on_main_thread(move || match utils::paste(text, ah.clone()) {
-        Ok(()) => debug!("AI reply text pasted via window"),
-        Err(e) => {
-            error!("Failed to paste AI reply text: {}", e);
-            let _ = ah.emit("paste-error", ());
-        }
+    app.run_on_main_thread(move || {
+        let _ = tx.send(utils::paste(text, ah));
     })
-    .map_err(|e| format!("Failed to run paste on main thread: {}", e))
+    .map_err(|e| format!("Failed to run paste on main thread: {}", e))?;
+
+    match rx.await {
+        Ok(Ok(())) => {
+            debug!("AI reply text pasted via window");
+            hide_ai_reply_window(&app);
+            Ok(())
+        }
+        Ok(Err(e)) => {
+            error!("Failed to paste AI reply text: {}", e);
+            Err(e)
+        }
+        Err(e) => Err(format!("Paste result channel closed: {}", e)),
+    }
 }
 
 #[tauri::command]

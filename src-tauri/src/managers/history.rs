@@ -182,8 +182,12 @@ pub fn apply_corrections(text: &str, corrections: &[Correction]) -> String {
         let pattern = format!("(?i){}", body);
         match Regex::new(&pattern) {
             Ok(re) => {
+                // `NoExpand` treats the replacement as a literal string so
+                // `$1`, `${name}` etc. don't get interpreted as capture
+                // references. Without it, a user reference like
+                // "price" -> "$100" would be silently mangled.
                 result = re
-                    .replace_all(&result, c.corrected_text.as_str())
+                    .replace_all(&result, regex::NoExpand(c.corrected_text.as_str()))
                     .to_string();
             }
             Err(e) => {
@@ -1211,6 +1215,22 @@ mod tests {
         let rules = vec![correction(1, "", "anything")];
         // Empty pattern would be pathological — the filter should drop it.
         assert_eq!(apply_corrections("halo", &rules), "halo");
+    }
+
+    #[test]
+    fn apply_corrections_replacement_dollar_is_literal() {
+        // References often expand to text containing `$` — currency ($100),
+        // shell variables ($HOME), template placeholders (${name}). These must
+        // not be interpreted as regex backreferences.
+        let rules = vec![
+            correction(1, "price", "$100"),
+            correction(2, "home", "$HOME"),
+            correction(3, "name", "${user_name}"),
+        ];
+        assert_eq!(
+            apply_corrections("price at home, name me", &rules),
+            "$100 at $HOME, ${user_name} me"
+        );
     }
 
     fn setup_corrections_conn() -> Connection {

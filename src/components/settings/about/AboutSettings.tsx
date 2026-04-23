@@ -20,7 +20,7 @@ export const AboutSettings: React.FC = () => {
         setVersion(appVersion);
       } catch (error) {
         console.error("Failed to get app version:", error);
-        setVersion("0.1.2");
+        setVersion("0.8.2");
       }
     };
 
@@ -36,7 +36,32 @@ export const AboutSettings: React.FC = () => {
   };
 
   return (
-    <div className="max-w-3xl w-full mx-auto space-y-6">
+    <div className="max-w-3xl w-full mx-auto pb-12">
+      {/* Editorial hero */}
+      <section className="pt-14 pb-10 px-6">
+        {/* eslint-disable i18next/no-literal-string */}
+        <div className="font-mono text-[11px] tracking-[0.18em] mb-4" style={{ color: "var(--color-muted)" }}>ROARY MIC · v{version || "0.0.0"}</div>
+        <h1 className="font-display text-[64px] leading-[0.95] tracking-tight" style={{ color: "var(--color-ink)" }}>
+          <span className="italic" style={{ color: "var(--color-accent)" }}>Roary</span>{" "}
+          <span>Mic</span>
+        </h1>
+        {/* eslint-enable i18next/no-literal-string */}
+        <p
+          className="font-sans text-[15px] leading-[1.6] mt-6 max-w-[46ch]"
+          style={{ color: "var(--color-muted)" }}
+        >
+          {t("settings.about.version.description")}
+        </p>
+        <div
+          aria-hidden
+          className="text-[64px] leading-none select-none mt-10"
+          style={{ opacity: 0.25 }}
+          title="Roary Mic"
+        >
+          🦁
+        </div>
+      </section>
+
       <SettingsGroup title={t("settings.about.title")}>
         <AppLanguageSelector descriptionMode="tooltip" grouped={true} />
         <SettingContainer
@@ -45,7 +70,9 @@ export const AboutSettings: React.FC = () => {
           grouped={true}
         >
           {/* eslint-disable-next-line i18next/no-literal-string */}
-          <span className="text-sm font-mono">v{version}</span>
+          <span className="font-mono text-[12px] tracking-wider">
+            v{version}
+          </span>
         </SettingContainer>
 
         <SettingContainer
@@ -66,7 +93,9 @@ export const AboutSettings: React.FC = () => {
           <Button
             variant="secondary"
             size="md"
-            onClick={() => openUrl("https://github.com/cjpais/Handy")}
+            onClick={() =>
+              openUrl("https://github.com/danielharunjen-glitch/roary-mic")
+            }
           >
             {t("settings.about.sourceCode.button")}
           </Button>
@@ -83,7 +112,10 @@ export const AboutSettings: React.FC = () => {
           grouped={true}
           layout="stacked"
         >
-          <div className="text-sm text-mid-gray">
+          <div
+            className="text-[13px] leading-[1.6]"
+            style={{ color: "var(--color-muted)" }}
+          >
             {t("settings.about.acknowledgments.whisper.details")}
           </div>
         </SettingContainer>

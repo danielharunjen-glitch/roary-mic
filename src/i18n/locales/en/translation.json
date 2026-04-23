@@ -18,7 +18,8 @@
     "references": "References",
     "aiMode": "AI Mode",
     "debug": "Debug",
-    "about": "About"
+    "about": "About",
+    "tagline": "Speak · Type · Send"
   },
   "onboarding": {
     "subtitle": "To get started, choose a transcription model",
@@ -693,7 +694,9 @@
     "dismiss": "Dismiss",
     "savedToast": "Saved correction",
     "saveError": "Failed to save correction",
-    "discardError": "Failed to discard candidate"
+    "discardError": "Failed to discard candidate",
+    "settingLabel": "Learn from my edits",
+    "settingDescription": "When you fix transcribed text before sending, save the change as a correction you can accept or discard."
   },
   "errors": {
     "loadDirectory": "Error loading directory: {{error}}",

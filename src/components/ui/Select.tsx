@@ -39,83 +39,94 @@ type NonCreatableProps = {
 
 export type SelectProps = BaseProps & (CreatableProps | NonCreatableProps);
 
-const baseBackground =
-  "color-mix(in srgb, var(--color-mid-gray) 10%, transparent)";
-const hoverBackground =
-  "color-mix(in srgb, var(--color-logo-primary) 12%, transparent)";
-const focusBackground =
-  "color-mix(in srgb, var(--color-logo-primary) 20%, transparent)";
-const neutralBorder =
-  "color-mix(in srgb, var(--color-mid-gray) 80%, transparent)";
+const hoverBackground = "color-mix(in srgb, var(--color-ink) 4%, transparent)";
+const optionSelectedBg =
+  "color-mix(in srgb, var(--color-accent) 12%, transparent)";
+const optionFocusedBg =
+  "color-mix(in srgb, var(--color-accent) 6%, transparent)";
 
 const selectStyles: StylesConfig<SelectOption, false> = {
   control: (base, state) => ({
     ...base,
-    minHeight: 40,
-    borderRadius: 6,
-    borderColor: state.isFocused ? "var(--color-logo-primary)" : neutralBorder,
-    boxShadow: state.isFocused ? "0 0 0 1px var(--color-logo-primary)" : "none",
-    backgroundColor: state.isFocused ? focusBackground : baseBackground,
-    fontSize: "0.875rem",
-    color: "var(--color-text)",
-    transition: "all 150ms ease",
+    minHeight: 36,
+    borderRadius: 3,
+    border: "none",
+    borderBottom: `1px solid ${
+      state.isFocused ? "var(--color-accent)" : "var(--color-rule)"
+    }`,
+    boxShadow: "none",
+    backgroundColor: "transparent",
+    fontSize: "13px",
+    color: "var(--color-ink)",
+    transition: "border-color 200ms ease-out",
     ":hover": {
-      borderColor: "var(--color-logo-primary)",
+      borderBottom:
+        "1px solid color-mix(in srgb, var(--color-ink) 40%, transparent)",
       backgroundColor: hoverBackground,
     },
   }),
   valueContainer: (base) => ({
     ...base,
-    paddingInline: 10,
+    paddingInline: 0,
     paddingBlock: 6,
   }),
   input: (base) => ({
     ...base,
-    color: "var(--color-text)",
+    color: "var(--color-ink)",
   }),
   singleValue: (base) => ({
     ...base,
-    color: "var(--color-text)",
+    color: "var(--color-ink)",
   }),
+  indicatorSeparator: () => ({ display: "none" }),
   dropdownIndicator: (base, state) => ({
     ...base,
-    color: state.isFocused
-      ? "var(--color-logo-primary)"
-      : "color-mix(in srgb, var(--color-mid-gray) 80%, transparent)",
+    padding: 4,
+    color: state.isFocused ? "var(--color-accent)" : "var(--color-muted)",
     ":hover": {
-      color: "var(--color-logo-primary)",
+      color: "var(--color-accent)",
     },
   }),
   clearIndicator: (base) => ({
     ...base,
-    color: "color-mix(in srgb, var(--color-mid-gray) 80%, transparent)",
+    padding: 4,
+    color: "var(--color-muted)",
     ":hover": {
-      color: "var(--color-logo-primary)",
+      color: "var(--color-accent)",
     },
   }),
   menu: (provided) => ({
     ...provided,
     zIndex: 30,
-    backgroundColor: "var(--color-background)",
-    color: "var(--color-text)",
-    border:
-      "1px solid color-mix(in srgb, var(--color-mid-gray) 30%, transparent)",
-    boxShadow: "0 10px 30px rgba(15, 15, 15, 0.2)",
+    backgroundColor: "var(--color-paper)",
+    color: "var(--color-ink)",
+    border: "1px solid var(--color-rule)",
+    borderRadius: 5,
+    boxShadow: "0 8px 32px rgba(0, 0, 0, 0.18)",
+    overflow: "hidden",
+  }),
+  menuList: (base) => ({
+    ...base,
+    padding: 4,
   }),
   option: (base, state) => ({
     ...base,
+    fontSize: "13px",
+    borderRadius: 3,
     backgroundColor: state.isSelected
-      ? focusBackground
+      ? optionSelectedBg
       : state.isFocused
-        ? hoverBackground
+        ? optionFocusedBg
         : "transparent",
-    color: "var(--color-text)",
+    color: state.isSelected ? "var(--color-accent)" : "var(--color-ink)",
     cursor: state.isDisabled ? "not-allowed" : base.cursor,
-    opacity: state.isDisabled ? 0.5 : 1,
+    opacity: state.isDisabled ? 0.4 : 1,
+    transition: "background-color 150ms ease-out, color 150ms ease-out",
   }),
   placeholder: (base) => ({
     ...base,
-    color: "color-mix(in srgb, var(--color-mid-gray) 65%, transparent)",
+    color: "var(--color-muted)",
+    opacity: 0.7,
   }),
 };
 

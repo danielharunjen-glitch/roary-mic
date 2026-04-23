@@ -15,7 +15,8 @@
     "postProcessing": "Xử lý sau",
     "history": "Lịch sử",
     "debug": "Gỡ lỗi",
-    "about": "Giới thiệu"
+    "about": "Giới thiệu",
+    "tagline": "Speak · Type · Send"
   },
   "onboarding": {
     "subtitle": "Để bắt đầu, hãy chọn một mô hình chuyển đổi giọng nói",
@@ -598,7 +599,9 @@
     "dismiss": "Dismiss",
     "savedToast": "Saved correction",
     "saveError": "Failed to save correction",
-    "discardError": "Failed to discard candidate"
+    "discardError": "Failed to discard candidate",
+    "settingLabel": "Learn from my edits",
+    "settingDescription": "When you fix transcribed text before sending, save the change as a correction you can accept or discard."
   },
   "errors": {
     "loadDirectory": "Lỗi khi tải thư mục: {{error}}",

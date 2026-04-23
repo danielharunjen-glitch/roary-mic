@@ -15,7 +15,8 @@
     "postProcessing": "後処理",
     "history": "履歴",
     "debug": "デバッグ",
-    "about": "概要"
+    "about": "概要",
+    "tagline": "Speak · Type · Send"
   },
   "onboarding": {
     "subtitle": "開始するには、文字起こしモデルを選択してください",
@@ -598,7 +599,9 @@
     "dismiss": "Dismiss",
     "savedToast": "Saved correction",
     "saveError": "Failed to save correction",
-    "discardError": "Failed to discard candidate"
+    "discardError": "Failed to discard candidate",
+    "settingLabel": "Learn from my edits",
+    "settingDescription": "When you fix transcribed text before sending, save the change as a correction you can accept or discard."
   },
   "errors": {
     "loadDirectory": "ディレクトリの読み込みエラー: {{error}}",

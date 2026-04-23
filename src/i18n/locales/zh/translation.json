@@ -15,7 +15,8 @@
     "postProcessing": "后处理",
     "history": "历史记录",
     "debug": "调试",
-    "about": "关于"
+    "about": "关于",
+    "tagline": "Speak · Type · Send"
   },
   "onboarding": {
     "subtitle": "请选择一个转录模型以开始使用",
@@ -598,7 +599,9 @@
     "dismiss": "Dismiss",
     "savedToast": "Saved correction",
     "saveError": "Failed to save correction",
-    "discardError": "Failed to discard candidate"
+    "discardError": "Failed to discard candidate",
+    "settingLabel": "Learn from my edits",
+    "settingDescription": "When you fix transcribed text before sending, save the change as a correction you can accept or discard."
   },
   "errors": {
     "loadDirectory": "加载目录时出错: {{error}}",

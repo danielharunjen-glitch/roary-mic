@@ -8,6 +8,7 @@ import { useSettingsStore } from "../../../stores/settingsStore";
 import { ToggleSwitch } from "../../ui/ToggleSwitch";
 import { ShortcutInput } from "../ShortcutInput";
 import ScreenRecordingPermissions from "../../ScreenRecordingPermissions";
+import { SectionHeader } from "../SectionHeader";
 
 const CLAUDE_CODE_LOCAL_ID = "claude_code_local";
 
@@ -182,17 +183,14 @@ export const AiModeSettings: React.FC = () => {
   }, [elevenModelId, localElevenModelId, refreshSettings, t]);
 
   return (
-    <div className="max-w-3xl w-full mx-auto space-y-6">
-      <div className="space-y-2">
-        <div className="px-4">
-          <h2 className="text-xs font-medium text-mid-gray uppercase tracking-wide">
-            {t("settings.aiMode.title")}
-          </h2>
-          <p className="text-xs text-mid-gray mt-1">
-            {t("settings.aiMode.description")}
-          </p>
-        </div>
-        <div className="bg-background border border-mid-gray/20 rounded-lg p-4 space-y-4">
+    <div className="max-w-3xl w-full mx-auto pb-12">
+      <SectionHeader
+        number="07"
+        title={t("settings.aiMode.title")}
+        description={t("settings.aiMode.description")}
+      />
+      <div className="space-y-6">
+        <div className="space-y-4">
           <ToggleSwitch
             checked={enabled}
             onChange={handleToggle}

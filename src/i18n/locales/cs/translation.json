@@ -15,7 +15,8 @@
     "postProcessing": "Následné zpracování",
     "history": "Historie",
     "debug": "Ladění",
-    "about": "O aplikaci"
+    "about": "O aplikaci",
+    "tagline": "Speak · Type · Send"
   },
   "onboarding": {
     "subtitle": "Pro začátek vyberte model pro přepis",
@@ -598,7 +599,9 @@
     "dismiss": "Dismiss",
     "savedToast": "Saved correction",
     "saveError": "Failed to save correction",
-    "discardError": "Failed to discard candidate"
+    "discardError": "Failed to discard candidate",
+    "settingLabel": "Learn from my edits",
+    "settingDescription": "When you fix transcribed text before sending, save the change as a correction you can accept or discard."
   },
   "errors": {
     "loadDirectory": "Chyba při načítání adresáře: {{error}}",

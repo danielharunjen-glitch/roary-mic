@@ -15,6 +15,7 @@
     "postProcessing": "Post Process",
     "history": "History",
     "corrections": "Corrections",
+    "references": "References",
     "aiMode": "AI Mode",
     "debug": "Debug",
     "about": "About"
@@ -455,6 +456,24 @@
       "addButton": "Add",
       "addError": "Failed to add correction. Please try again.",
       "addMustDiffer": "From and To must be different."
+    },
+    "references": {
+      "title": "References",
+      "description": "Pronounce a phrase and have Roary insert a specific piece of text instead.\nThink of it as voice snippets — say \"my email\" and your actual email address gets typed, so you never have to spell out addresses, phone numbers, or boilerplate out loud.",
+      "exampleTitle": "Example",
+      "exampleBody": "Add the pair  my email → daniel@example.com. Next time you dictate \"Please reply at my email\", Roary pastes \"Please reply at daniel@example.com\".",
+      "loading": "Loading references...",
+      "empty": "No references yet. Add one above — e.g. \"my email\" → your actual email.",
+      "addPhrasePlaceholder": "Phrase to say (e.g. my email)",
+      "addExpansionPlaceholder": "Text to insert (e.g. you@example.com)",
+      "addButton": "Add",
+      "addError": "Failed to add reference. Please try again.",
+      "addMustDiffer": "The phrase and the inserted text must differ.",
+      "enable": "Enable reference",
+      "disable": "Disable reference",
+      "delete": "Delete reference",
+      "toggleError": "Failed to toggle reference. Please try again.",
+      "deleteError": "Failed to delete reference. Please try again."
     },
     "aiMode": {
       "title": "AI Mode",

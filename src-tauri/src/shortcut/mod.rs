@@ -24,7 +24,8 @@ use crate::settings::APPLE_INTELLIGENCE_DEFAULT_MODEL_ID;
 use crate::settings::{
     self, get_settings, AutoSubmitKey, ClipboardHandling, KeyboardImplementation, LLMPrompt,
     OverlayPosition, PasteMethod, ShortcutBinding, SoundTheme, TypingTool,
-    APPLE_INTELLIGENCE_PROVIDER_ID,
+    APPLE_INTELLIGENCE_PROVIDER_ID, CLAUDE_CODE_LOCAL_DEFAULT_MODEL_ID,
+    CLAUDE_CODE_LOCAL_PROVIDER_ID,
 };
 use crate::tray;
 
@@ -1012,6 +1013,13 @@ pub async fn fetch_post_process_models(
         {
             return Err("Apple Intelligence is only available on Apple silicon Macs running macOS 15 or later.".to_string());
         }
+    }
+
+    // Claude Code (local) uses the `claude` CLI, which ignores the model arg.
+    // Surface the synthetic default instead of trying to fetch via HTTP and
+    // failing with a misleading "API key required" error.
+    if provider.id == CLAUDE_CODE_LOCAL_PROVIDER_ID {
+        return Ok(vec![CLAUDE_CODE_LOCAL_DEFAULT_MODEL_ID.to_string()]);
     }
 
     // Get API key

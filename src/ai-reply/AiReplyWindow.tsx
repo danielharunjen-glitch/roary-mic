@@ -1,4 +1,4 @@
-import { listen } from "@tauri-apps/api/event";
+import { emit, listen } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -10,25 +10,38 @@ type ReplyPayload = { text: string };
 const AiReplyWindow: React.FC = () => {
   const { t } = useTranslation();
   const [text, setText] = useState("");
-  const [status, setStatus] = useState<"idle" | "speaking" | "error">("idle");
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const pasteButtonRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     let unlisten: (() => void) | undefined;
 
     (async () => {
       await syncLanguageFromSettings();
-      unlisten = await listen<ReplyPayload>("ai-mode-reply-ready", (event) => {
-        setText(event.payload?.text ?? "");
-        setStatus("idle");
-        setErrorMessage(null);
-        // Focus the default action once the text is in place.
-        queueMicrotask(() => pasteButtonRef.current?.focus());
-      });
+      const handler = await listen<ReplyPayload>(
+        "ai-mode-reply-ready",
+        (event) => {
+          setText(event.payload?.text ?? "");
+          setIsSpeaking(false);
+          setErrorMessage(null);
+          // Focus the default action once the text is in place.
+          queueMicrotask(() => pasteButtonRef.current?.focus());
+        },
+      );
+      if (cancelled) {
+        handler();
+        return;
+      }
+      unlisten = handler;
+      // Handshake: tell the backend we're ready to receive payloads. If a
+      // reply was queued before mount (first-use race), it replays now.
+      await emit("ai-reply-window-ready");
     })();
 
     return () => {
+      cancelled = true;
       unlisten?.();
     };
   }, []);
@@ -45,20 +58,17 @@ const AiReplyWindow: React.FC = () => {
   const handlePaste = useCallback(async () => {
     const result = await commands.aiReplyPaste(text);
     if (result.status !== "ok") {
-      setStatus("error");
       setErrorMessage(result.error ?? t("aiReplyWindow.pasteError"));
     }
   }, [text, t]);
 
   const handleSpeak = useCallback(async () => {
-    setStatus("speaking");
+    setIsSpeaking(true);
     setErrorMessage(null);
     const result = await commands.aiReplySpeak(text);
+    setIsSpeaking(false);
     if (result.status !== "ok") {
-      setStatus("error");
       setErrorMessage(result.error ?? t("aiReplyWindow.speakError"));
-    } else {
-      setStatus("idle");
     }
   }, [text, t]);
 
@@ -116,12 +126,10 @@ const AiReplyWindow: React.FC = () => {
         <button
           type="button"
           onClick={handleSpeak}
-          disabled={status === "speaking" || text.trim().length === 0}
+          disabled={isSpeaking || text.trim().length === 0}
           className="text-sm px-3 py-1.5 rounded-md border border-mid-gray/30 hover:border-logo-primary disabled:opacity-50"
         >
-          {status === "speaking"
-            ? t("aiReplyWindow.speaking")
-            : t("aiReplyWindow.speak")}
+          {isSpeaking ? t("aiReplyWindow.speaking") : t("aiReplyWindow.speak")}
         </button>
         <button
           ref={pasteButtonRef}

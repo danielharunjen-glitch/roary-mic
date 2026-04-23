@@ -296,6 +296,12 @@ fn initialize_core_logic(app_handle: &AppHandle) {
 
     // Create the recording overlay window (hidden by default)
     utils::create_recording_overlay(app_handle);
+
+    // Pre-create the AI reply window (hidden) so the React listener is
+    // registered before the first AI-mode reply arrives. Without this, the
+    // first use races: the webview is created but its JS hasn't mounted
+    // yet, and the `ai-mode-reply-ready` event is dropped.
+    ai_reply::create_ai_reply_window(app_handle);
 }
 
 #[tauri::command]
@@ -361,7 +367,6 @@ pub fn run(cli_args: CliArgs) {
             shortcut::change_elevenlabs_api_key_setting,
             shortcut::change_elevenlabs_voice_id_setting,
             shortcut::change_elevenlabs_model_id_setting,
-            commands::ai_reply::ai_reply_show,
             commands::ai_reply::ai_reply_paste,
             commands::ai_reply::ai_reply_speak,
             commands::ai_reply::ai_reply_cancel,

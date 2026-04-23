@@ -155,6 +155,18 @@ pub async fn send_chat_completion_with_schema(
     reasoning_effort: Option<String>,
     reasoning: Option<ReasoningConfig>,
 ) -> Result<Option<String>, String> {
+    // Claude Code (local subscription) bypasses HTTP entirely. Handle it here so
+    // both post-processing (send_chat_completion and this fn) and AI-mode
+    // (send_chat_completion_multimodal) all route through the local CLI.
+    if is_claude_code_local(provider) {
+        let _ = (api_key, model, json_schema, reasoning_effort, reasoning);
+        debug!("Routing chat completion through local Claude Code CLI");
+        let reply =
+            crate::claude_code::run_claude_code(&user_content, None, system_prompt.as_deref())
+                .await?;
+        return Ok(Some(reply));
+    }
+
     let base_url = provider.base_url.trim_end_matches('/');
     let url = format!("{}/chat/completions", base_url);
 

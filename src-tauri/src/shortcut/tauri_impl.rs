@@ -27,6 +27,12 @@ pub fn init_shortcuts(app: &AppHandle) {
         if id == "transcribe_with_post_process" && !user_settings.post_process_enabled {
             continue;
         }
+        // Skip AI-mode shortcut when the feature is disabled, so we don't
+        // consume the user's keystroke globally (e.g. Cmd+Shift+Space) for a
+        // feature they haven't opted into.
+        if id == "ai_mode" && !user_settings.ai_mode_enabled {
+            continue;
+        }
         let binding = user_settings
             .bindings
             .get(&id)

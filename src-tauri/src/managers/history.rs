@@ -182,8 +182,12 @@ pub fn apply_corrections(text: &str, corrections: &[Correction]) -> String {
         let pattern = format!("(?i){}", body);
         match Regex::new(&pattern) {
             Ok(re) => {
+                // `NoExpand` treats the replacement as a literal string so
+                // `$1`, `${name}` etc. don't get interpreted as capture
+                // references. Without it, a user reference like
+                // "price" -> "$100" would be silently mangled.
                 result = re
-                    .replace_all(&result, c.corrected_text.as_str())
+                    .replace_all(&result, regex::NoExpand(c.corrected_text.as_str()))
                     .to_string();
             }
             Err(e) => {
@@ -922,8 +926,12 @@ impl HistoryManager {
     /// before paste.
     pub fn get_active_corrections(&self) -> Result<Vec<Correction>> {
         let conn = self.get_connection()?;
+        Self::get_active_corrections_with_conn(&conn)
+    }
+
+    fn get_active_corrections_with_conn(conn: &Connection) -> Result<Vec<Correction>> {
         let mut stmt = conn.prepare(
-            "SELECT id, original_text, corrected_text, history_id, created_at, enabled
+            "SELECT id, original_text, corrected_text, history_id, created_at, enabled, kind
              FROM corrections
              WHERE enabled = 1
              ORDER BY created_at ASC",
@@ -1209,6 +1217,22 @@ mod tests {
         assert_eq!(apply_corrections("halo", &rules), "halo");
     }
 
+    #[test]
+    fn apply_corrections_replacement_dollar_is_literal() {
+        // References often expand to text containing `$` — currency ($100),
+        // shell variables ($HOME), template placeholders (${name}). These must
+        // not be interpreted as regex backreferences.
+        let rules = vec![
+            correction(1, "price", "$100"),
+            correction(2, "home", "$HOME"),
+            correction(3, "name", "${user_name}"),
+        ];
+        assert_eq!(
+            apply_corrections("price at home, name me", &rules),
+            "$100 at $HOME, ${user_name} me"
+        );
+    }
+
     fn setup_corrections_conn() -> Connection {
         let conn = Connection::open_in_memory().expect("open in-memory db");
         conn.execute_batch(
@@ -1266,5 +1290,21 @@ mod tests {
         let all =
             HistoryManager::list_corrections_with_conn(&conn, 10, None).expect("list all kinds");
         assert_eq!(all.len(), 3);
+    }
+
+    #[test]
+    fn get_active_corrections_loads_kind_column() {
+        let conn = setup_corrections_conn();
+        insert_correction_row(&conn, "halo", "hello", 100, "correction");
+        insert_correction_row(&conn, "my email", "daniel@example.com", 200, "reference");
+
+        let active = HistoryManager::get_active_corrections_with_conn(&conn)
+            .expect("get_active_corrections must succeed when kind column is present");
+        assert_eq!(active.len(), 2);
+        // Sorted oldest-first (ASC by created_at) to preserve application order.
+        assert_eq!(active[0].original_text, "halo");
+        assert_eq!(active[0].kind, "correction");
+        assert_eq!(active[1].original_text, "my email");
+        assert_eq!(active[1].kind, "reference");
     }
 }

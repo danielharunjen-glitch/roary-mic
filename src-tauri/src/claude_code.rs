@@ -1,7 +1,13 @@
 use serde_json::Value;
-use std::io::Write;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
+use std::time::Duration;
+use tokio::io::AsyncWriteExt;
+
+/// Maximum time we wait for the `claude` CLI to produce output before killing
+/// the subprocess. Chosen to cover typical agent loops while still freeing the
+/// user if auth/MFA prompts or rate-limit backoff cause the CLI to hang.
+const CLAUDE_CLI_TIMEOUT: Duration = Duration::from_secs(60);
 
 /// Return the path to the `claude` CLI if it is on PATH, otherwise None.
 ///
@@ -9,22 +15,58 @@ use std::process::{Command, Stdio};
 /// resolution the user's environment performs. We deliberately avoid pulling
 /// in the `which` crate — a subprocess to the system tool has zero extra
 /// dependencies and the cost is trivial (only called on settings mount).
+///
+/// On macOS, GUI-launched apps (Finder/Dock/Spotlight) inherit a minimal PATH
+/// from launchd (`/usr/bin:/bin:/usr/sbin:/sbin`) that does not include
+/// Homebrew, npm-global, or the official Claude Code installer location. We
+/// fall back to checking known install paths so the health check reflects
+/// reality rather than launch-context accidents.
 pub fn claude_cli_available() -> Option<PathBuf> {
     #[cfg(target_family = "unix")]
     let lookup_cmd = "which";
     #[cfg(target_family = "windows")]
     let lookup_cmd = "where";
 
-    let output = Command::new(lookup_cmd).arg("claude").output().ok()?;
-    if !output.status.success() {
-        return None;
+    if let Ok(output) = Command::new(lookup_cmd).arg("claude").output() {
+        if output.status.success() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            if let Some(first_line) = stdout.lines().next() {
+                let trimmed = first_line.trim();
+                if !trimmed.is_empty() {
+                    return Some(PathBuf::from(trimmed));
+                }
+            }
+        }
     }
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let first_line = stdout.lines().next()?.trim();
-    if first_line.is_empty() {
-        return None;
+
+    #[cfg(target_os = "macos")]
+    {
+        claude_cli_macos_fallback()
     }
-    Some(PathBuf::from(first_line))
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        None
+    }
+}
+
+/// Check common install locations on macOS when PATH lookup fails.
+/// Covers Homebrew (Apple Silicon + Intel), the official Claude Code
+/// installer (`~/.claude/local/claude`), npm-global (`~/.local/bin`), and
+/// the Volta shim location.
+#[cfg(target_os = "macos")]
+fn claude_cli_macos_fallback() -> Option<PathBuf> {
+    let home = std::env::var_os("HOME").map(PathBuf::from);
+    let mut candidates: Vec<PathBuf> = vec![
+        PathBuf::from("/opt/homebrew/bin/claude"),
+        PathBuf::from("/usr/local/bin/claude"),
+    ];
+    if let Some(home) = home {
+        candidates.push(home.join(".claude/local/claude"));
+        candidates.push(home.join(".local/bin/claude"));
+        candidates.push(home.join(".volta/bin/claude"));
+    }
+    candidates.into_iter().find(|p| p.is_file())
 }
 
 /// Extract the final assistant text from Claude Code's stream-json output.
@@ -103,10 +145,19 @@ pub async fn run_claude_code(
         (None, false) => prompt.to_string(),
     };
 
-    // Offload the blocking subprocess to the runtime's blocking pool so we
-    // don't stall the async executor.
-    let output = tauri::async_runtime::spawn_blocking(move || {
-        let mut child = Command::new("claude")
+    // Resolve the `claude` binary before spawning. On macOS, a Finder-launched
+    // app has a minimal PATH that does not include Homebrew or npm-global, so
+    // `Command::new("claude")` would fail even when the CLI is installed. Fall
+    // back through claude_cli_available() to reuse the same resolution logic
+    // as the health check.
+    let claude_bin: PathBuf = claude_cli_available().unwrap_or_else(|| PathBuf::from("claude"));
+
+    // Use tokio::process so the child is killed when the timeout future drops
+    // it (kill_on_drop). std::process + spawn_blocking would leak the process
+    // and the blocking-pool thread on timeout because spawn_blocking tasks
+    // cannot be cancelled.
+    let output = tokio::time::timeout(CLAUDE_CLI_TIMEOUT, async move {
+        let mut child = tokio::process::Command::new(&claude_bin)
             .arg("-p")
             .arg("--output-format")
             .arg("stream-json")
@@ -115,21 +166,31 @@ pub async fn run_claude_code(
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
+            .kill_on_drop(true)
             .spawn()
             .map_err(|e| format!("Failed to spawn claude CLI: {e}"))?;
 
         if let Some(mut stdin) = child.stdin.take() {
             stdin
                 .write_all(full_prompt.as_bytes())
+                .await
                 .map_err(|e| format!("Failed to write prompt to claude stdin: {e}"))?;
+            // Drop stdin so the CLI sees EOF and starts processing.
+            drop(stdin);
         }
 
         child
             .wait_with_output()
+            .await
             .map_err(|e| format!("Failed to wait for claude CLI: {e}"))
     })
     .await
-    .map_err(|e| format!("claude subprocess task panicked: {e}"))??;
+    .map_err(|_| {
+        format!(
+            "claude CLI timed out after {}s (stuck auth prompt, MFA, or rate-limit backoff?)",
+            CLAUDE_CLI_TIMEOUT.as_secs()
+        )
+    })??;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);

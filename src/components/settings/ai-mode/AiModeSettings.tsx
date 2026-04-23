@@ -8,6 +8,8 @@ import { useSettingsStore } from "../../../stores/settingsStore";
 import { ToggleSwitch } from "../../ui/ToggleSwitch";
 import { ShortcutInput } from "../ShortcutInput";
 
+const CLAUDE_CODE_LOCAL_ID = "claude_code_local";
+
 export const AiModeSettings: React.FC = () => {
   const { t } = useTranslation();
   const { settings } = useSettings();
@@ -17,6 +19,7 @@ export const AiModeSettings: React.FC = () => {
   const providerId = settings?.ai_mode_provider_id ?? "anthropic";
   const providers = settings?.post_process_providers ?? [];
   const currentProvider = providers.find((p) => p.id === providerId);
+  const isClaudeCodeLocal = providerId === CLAUDE_CODE_LOCAL_ID;
   const apiKey = settings?.post_process_api_keys?.[providerId] ?? "";
   const model = settings?.ai_mode_model ?? "";
   const prompt = settings?.ai_mode_prompt ?? "";
@@ -32,6 +35,24 @@ export const AiModeSettings: React.FC = () => {
   const [localElevenApiKey, setLocalElevenApiKey] = useState(elevenApiKey);
   const [localElevenVoiceId, setLocalElevenVoiceId] = useState(elevenVoiceId);
   const [localElevenModelId, setLocalElevenModelId] = useState(elevenModelId);
+  const [claudeCodeAvailable, setClaudeCodeAvailable] = useState<boolean | null>(
+    null,
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    commands
+      .checkClaudeCodeAvailable()
+      .then((available) => {
+        if (!cancelled) setClaudeCodeAvailable(available);
+      })
+      .catch(() => {
+        if (!cancelled) setClaudeCodeAvailable(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     setLocalModel(model);
@@ -202,36 +223,76 @@ export const AiModeSettings: React.FC = () => {
                   onChange={(e) => handleProviderChange(e.target.value)}
                   className="w-full text-sm bg-background border border-mid-gray/30 rounded-md px-3 py-1.5 focus:outline-none focus:border-logo-primary"
                 >
-                  {providers.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.label}
-                    </option>
-                  ))}
+                  {providers.map((p) => {
+                    const disabled =
+                      p.id === CLAUDE_CODE_LOCAL_ID &&
+                      claudeCodeAvailable === false;
+                    return (
+                      <option
+                        key={p.id}
+                        value={p.id}
+                        disabled={disabled}
+                        title={
+                          disabled
+                            ? t("settings.aiMode.claudeCode.unavailableTooltip")
+                            : undefined
+                        }
+                      >
+                        {p.label}
+                        {disabled
+                          ? ` — ${t("settings.aiMode.claudeCode.unavailableSuffix")}`
+                          : ""}
+                      </option>
+                    );
+                  })}
                 </select>
-                {currentProvider && (
+                {currentProvider && !isClaudeCodeLocal && (
                   <p className="text-xs text-mid-gray">
                     {currentProvider.base_url}
                   </p>
                 )}
               </div>
 
-              <div className="space-y-1">
-                <label className="text-sm font-medium">
-                  {t("settings.aiMode.apiKeyLabel")}
-                </label>
-                <input
-                  type="password"
-                  value={localApiKey}
-                  onChange={(e) => setLocalApiKey(e.target.value)}
-                  onBlur={commitApiKey}
-                  placeholder={t("settings.aiMode.apiKeyPlaceholder")}
-                  className="w-full text-sm bg-background border border-mid-gray/30 rounded-md px-3 py-1.5 focus:outline-none focus:border-logo-primary"
-                  autoComplete="off"
-                />
-                <p className="text-xs text-mid-gray">
-                  {t("settings.aiMode.apiKeyDescription")}
-                </p>
-              </div>
+              {isClaudeCodeLocal ? (
+                <div className="rounded-md border border-mid-gray/20 bg-background/60 p-3 space-y-1">
+                  <p className="text-xs text-mid-gray">
+                    {t("settings.aiMode.claudeCode.description")}
+                  </p>
+                  <p className="text-xs text-mid-gray">
+                    <a
+                      href="https://docs.claude.com/en/docs/claude-code/overview"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="underline"
+                    >
+                      {t("settings.aiMode.claudeCode.docsLink")}
+                    </a>
+                  </p>
+                  {claudeCodeAvailable === false && (
+                    <p className="text-xs text-red-500">
+                      {t("settings.aiMode.claudeCode.unavailableTooltip")}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">
+                    {t("settings.aiMode.apiKeyLabel")}
+                  </label>
+                  <input
+                    type="password"
+                    value={localApiKey}
+                    onChange={(e) => setLocalApiKey(e.target.value)}
+                    onBlur={commitApiKey}
+                    placeholder={t("settings.aiMode.apiKeyPlaceholder")}
+                    className="w-full text-sm bg-background border border-mid-gray/30 rounded-md px-3 py-1.5 focus:outline-none focus:border-logo-primary"
+                    autoComplete="off"
+                  />
+                  <p className="text-xs text-mid-gray">
+                    {t("settings.aiMode.apiKeyDescription")}
+                  </p>
+                </div>
+              )}
 
               <div className="space-y-1">
                 <label className="text-sm font-medium">

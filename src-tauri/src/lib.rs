@@ -4,6 +4,7 @@ mod ai_reply;
 mod apple_intelligence;
 mod audio_feedback;
 pub mod audio_toolkit;
+mod claude_code;
 pub mod cli;
 mod clipboard;
 mod commands;
@@ -403,6 +404,7 @@ pub fn run(cli_args: CliArgs) {
             commands::open_log_dir,
             commands::open_app_data_dir,
             commands::check_apple_intelligence_available,
+            commands::check_claude_code_available,
             commands::initialize_enigo,
             commands::initialize_shortcuts,
             commands::models::get_available_models,

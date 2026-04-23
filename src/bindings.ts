@@ -514,6 +514,15 @@ async checkAppleIntelligenceAvailable() : Promise<boolean> {
     return await TAURI_INVOKE("check_apple_intelligence_available");
 },
 /**
+ * Check if the `claude` CLI is installed on the user's PATH.
+ * Called by the frontend when the AI-mode provider selector renders so the
+ * "Claude Code (local subscription)" option can be disabled with an
+ * explanatory tooltip when the CLI is missing.
+ */
+async checkClaudeCodeAvailable() : Promise<boolean> {
+    return await TAURI_INVOKE("check_claude_code_available");
+},
+/**
  * Try to initialize Enigo (keyboard/mouse simulation).
  * On macOS, this will return an error if accessibility permissions are not granted.
  */

@@ -520,6 +520,12 @@
         "modelPlaceholder": "eleven_turbo_v2_5",
         "modelHelpText": "Default works well; override for other ElevenLabs models.",
         "modelError": "Failed to save model ID."
+      },
+      "claudeCode": {
+        "description": "Uses the local `claude` CLI so requests are billed against your Claude subscription. No API key required — run `claude login` first.",
+        "docsLink": "Claude Code documentation",
+        "unavailableSuffix": "not installed",
+        "unavailableTooltip": "The `claude` CLI was not found on PATH. Install Claude Code and run `claude login` to enable this option."
       }
     },
     "debug": {

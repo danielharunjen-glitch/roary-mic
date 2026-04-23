@@ -9,6 +9,8 @@ use tauri_plugin_store::StoreExt;
 
 pub const APPLE_INTELLIGENCE_PROVIDER_ID: &str = "apple_intelligence";
 pub const APPLE_INTELLIGENCE_DEFAULT_MODEL_ID: &str = "Apple Intelligence";
+pub const CLAUDE_CODE_LOCAL_PROVIDER_ID: &str = "claude_code_local";
+pub const CLAUDE_CODE_LOCAL_DEFAULT_MODEL_ID: &str = "claude-code";
 
 #[derive(Serialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
 #[serde(rename_all = "lowercase")]
@@ -661,6 +663,18 @@ fn default_post_process_providers() -> Vec<PostProcessProvider> {
         supports_structured_output: true,
     });
 
+    // Claude Code CLI — delegates to the locally-installed `claude` binary,
+    // using the user's existing Claude subscription. The `claude-code-local://`
+    // scheme is a sentinel that tells llm_client to bypass reqwest entirely.
+    providers.push(PostProcessProvider {
+        id: CLAUDE_CODE_LOCAL_PROVIDER_ID.to_string(),
+        label: "Claude Code (local subscription)".to_string(),
+        base_url: "claude-code-local://".to_string(),
+        allow_base_url_edit: false,
+        models_endpoint: None,
+        supports_structured_output: false,
+    });
+
     // Custom provider always comes last
     providers.push(PostProcessProvider {
         id: "custom".to_string(),
@@ -685,6 +699,9 @@ fn default_post_process_api_keys() -> SecretMap {
 fn default_model_for_provider(provider_id: &str) -> String {
     if provider_id == APPLE_INTELLIGENCE_PROVIDER_ID {
         return APPLE_INTELLIGENCE_DEFAULT_MODEL_ID.to_string();
+    }
+    if provider_id == CLAUDE_CODE_LOCAL_PROVIDER_ID {
+        return CLAUDE_CODE_LOCAL_DEFAULT_MODEL_ID.to_string();
     }
     String::new()
 }
@@ -1110,5 +1127,26 @@ mod tests {
         let out = format!("{:?}", settings);
         assert!(!out.contains("super-secret"));
         assert!(out.contains("[REDACTED]"));
+    }
+
+    #[test]
+    fn claude_code_local_provider_is_registered() {
+        let providers = default_post_process_providers();
+        let provider = providers
+            .iter()
+            .find(|p| p.id == CLAUDE_CODE_LOCAL_PROVIDER_ID)
+            .expect("claude_code_local provider must be present");
+        assert_eq!(provider.base_url, "claude-code-local://");
+        assert!(!provider.supports_structured_output);
+        assert!(provider.models_endpoint.is_none());
+    }
+
+    #[test]
+    fn claude_code_local_has_default_model() {
+        let map = default_post_process_models();
+        assert_eq!(
+            map.get(CLAUDE_CODE_LOCAL_PROVIDER_ID).map(String::as_str),
+            Some(CLAUDE_CODE_LOCAL_DEFAULT_MODEL_ID)
+        );
     }
 }

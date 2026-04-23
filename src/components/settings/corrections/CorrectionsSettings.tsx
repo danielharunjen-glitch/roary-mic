@@ -1,11 +1,18 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { ArrowRight, Plus, Power, Trash2 } from "lucide-react";
+import { listen } from "@tauri-apps/api/event";
+import { ArrowRight, Check, Plus, Power, Trash2, X } from "lucide-react";
 import { Button } from "../../ui/Button";
+import { ToggleSwitch } from "../../ui/ToggleSwitch";
 import { events } from "@/bindings";
-import { correctionCommands, type Correction } from "@/lib/corrections";
+import {
+  correctionCommands,
+  type Correction,
+  type PendingCorrectionEvent,
+} from "@/lib/corrections";
 import { formatDateTime } from "@/utils/dateFormat";
+import { useSettings } from "@/hooks/useSettings";
 
 const IconButton: React.FC<{
   onClick: () => void;
@@ -30,7 +37,11 @@ const IconButton: React.FC<{
 
 export const CorrectionsSettings: React.FC = () => {
   const { t, i18n } = useTranslation();
+  const { settings, refreshSettings } = useSettings();
+  const autoCaptureEnabled =
+    settings?.auto_capture_corrections_enabled ?? false;
   const [corrections, setCorrections] = useState<Correction[]>([]);
+  const [pending, setPending] = useState<Correction[]>([]);
   const [loading, setLoading] = useState(true);
   const [newOriginal, setNewOriginal] = useState("");
   const [newCorrected, setNewCorrected] = useState("");
@@ -46,9 +57,17 @@ export const CorrectionsSettings: React.FC = () => {
     setLoading(false);
   }, []);
 
+  const loadPending = useCallback(async () => {
+    const result = await correctionCommands.listPendingAuto(50);
+    if (result.status === "ok") {
+      setPending(result.data);
+    }
+  }, []);
+
   useEffect(() => {
     loadCorrections();
-  }, [loadCorrections]);
+    loadPending();
+  }, [loadCorrections, loadPending]);
 
   // Reload when history entries change, since edits may create new corrections.
   useEffect(() => {
@@ -61,6 +80,50 @@ export const CorrectionsSettings: React.FC = () => {
       unlisten.then((fn) => fn());
     };
   }, [loadCorrections]);
+
+  // Refresh the pending list when new candidates arrive from a paste commit.
+  useEffect(() => {
+    const unlisten = listen<PendingCorrectionEvent>(
+      "auto-correction-pending",
+      () => {
+        loadPending();
+      },
+    );
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [loadPending]);
+
+  const handleAutoCaptureToggle = async (next: boolean) => {
+    const res = await correctionCommands.setAutoCaptureEnabled(next);
+    if (res.status !== "ok") {
+      toast.error(t("autoCapture.saveError"));
+      return;
+    }
+    await refreshSettings();
+  };
+
+  const handleAcceptPending = async (id: number) => {
+    const prev = pending;
+    setPending((p) => p.filter((c) => c.id !== id));
+    const res = await correctionCommands.promotePendingAuto(id);
+    if (res.status === "ok") {
+      await loadCorrections();
+    } else {
+      setPending(prev);
+      toast.error(t("autoCapture.saveError"));
+    }
+  };
+
+  const handleDiscardPending = async (id: number) => {
+    const prev = pending;
+    setPending((p) => p.filter((c) => c.id !== id));
+    const res = await correctionCommands.discardPendingAuto(id);
+    if (res.status !== "ok") {
+      setPending(prev);
+      toast.error(t("autoCapture.discardError"));
+    }
+  };
 
   const handleToggle = async (correction: Correction) => {
     // Optimistic update.
@@ -128,6 +191,60 @@ export const CorrectionsSettings: React.FC = () => {
           <p className="text-xs text-mid-gray mt-1">
             {t("settings.corrections.description")}
           </p>
+        </div>
+
+        <div className="bg-background border border-mid-gray/20 rounded-lg p-4 space-y-3">
+          <ToggleSwitch
+            checked={autoCaptureEnabled}
+            onChange={handleAutoCaptureToggle}
+            label={t("autoCapture.toastTitle")}
+            description={t("autoCapture.toastBody", {
+              original: "pasted",
+              corrected: "edited",
+            })}
+            descriptionMode="inline"
+          />
+          {pending.length > 0 && (
+            <ul className="divide-y divide-mid-gray/20 border-t border-mid-gray/20">
+              {pending.map((p) => (
+                <li
+                  key={p.id}
+                  className="pt-3 first:pt-3 pb-2 flex items-center gap-3"
+                >
+                  <div className="flex-1 min-w-0 flex items-center gap-2 text-sm">
+                    <span
+                      className="font-mono px-2 py-0.5 rounded bg-mid-gray/10 truncate"
+                      title={p.original_text}
+                    >
+                      {p.original_text}
+                    </span>
+                    <ArrowRight className="w-4 h-4 shrink-0 text-text/40" />
+                    <span
+                      className="font-mono px-2 py-0.5 rounded bg-logo-primary/10 truncate"
+                      title={p.corrected_text}
+                    >
+                      {p.corrected_text}
+                    </span>
+                  </div>
+                  <div className="flex items-center">
+                    <IconButton
+                      onClick={() => handleAcceptPending(p.id)}
+                      active
+                      title={t("autoCapture.save")}
+                    >
+                      <Check className="w-4 h-4" />
+                    </IconButton>
+                    <IconButton
+                      onClick={() => handleDiscardPending(p.id)}
+                      title={t("autoCapture.dismiss")}
+                    >
+                      <X className="w-4 h-4" />
+                    </IconButton>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
         <div className="bg-background border border-mid-gray/20 rounded-lg px-4 py-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
           <input

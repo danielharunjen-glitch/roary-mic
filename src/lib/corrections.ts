@@ -1,7 +1,17 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { HistoryEntry, Result } from "@/bindings";
 
-export type CorrectionKind = "correction" | "reference";
+export type CorrectionKind = "correction" | "reference" | "pending_auto";
+
+export type PendingCorrectionRow = {
+  id: number;
+  original: string;
+  corrected: string;
+};
+
+export type PendingCorrectionEvent = {
+  candidates: PendingCorrectionRow[];
+};
 
 export type Correction = {
   id: number;
@@ -48,4 +58,16 @@ export const correctionCommands = {
         kind: kind ?? null,
       }),
     ),
+  setAutoCaptureEnabled: (enabled: boolean) =>
+    wrap<null>(
+      invoke("change_auto_capture_corrections_setting", { enabled }),
+    ),
+  listPendingAuto: (limit?: number) =>
+    wrap<Correction[]>(
+      invoke("list_pending_auto_corrections", { limit: limit ?? null }),
+    ),
+  promotePendingAuto: (id: number) =>
+    wrap<null>(invoke("promote_pending_auto_correction", { id })),
+  discardPendingAuto: (id: number) =>
+    wrap<null>(invoke("discard_pending_auto_correction", { id })),
 };

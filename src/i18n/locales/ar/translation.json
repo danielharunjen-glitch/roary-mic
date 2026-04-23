@@ -591,6 +591,15 @@
     "openSettings": "Open System Settings",
     "relaunchHint": "After granting, fully quit Roary Mic (Cmd+Q) and reopen. Permission changes do not apply to the running process."
   },
+  "autoCapture": {
+    "toastTitle": "Save correction?",
+    "toastBody": "{{original}} → {{corrected}}",
+    "save": "Save",
+    "dismiss": "Dismiss",
+    "savedToast": "Saved correction",
+    "saveError": "Failed to save correction",
+    "discardError": "Failed to discard candidate"
+  },
   "errors": {
     "loadDirectory": "خطأ في تحميل المجلد: {{error}}",
     "micPermissionDeniedTitle": "تم رفض الوصول إلى الميكروفون",

@@ -206,6 +206,23 @@ Access debug features: `Cmd+Shift+D` (macOS) or `Ctrl+Shift+D` (Windows/Linux)
 Exploratory, non-binding research docs live in `docs/research/`.
 
 - `docs/research/2026-04-23-local-correction-llm.md` — investigation of <1GB local LLMs for post-processing Whisper transcripts (punctuation, homophones, proper nouns). Recommendation: prototype with Qwen2.5 0.5B Instruct via `llama-cpp-2`. Implementation is a future follow-up plan, not current work.
+- `docs/research/2026-04-23-auto-capture-corrections-from-edits.md` — proposal for auto-capture corrections from post-paste edits. Implemented in V1 per `docs/plans/2026-04-23-auto-capture-corrections.md`.
+
+## Auto-capture corrections (macOS)
+
+Off by default. Enable via Settings → Corrections → "Save correction?" toggle.
+
+When on, Roary Mic watches the text field you just pasted into. If you edit the text before sending, the diff is captured as a pending correction pair. Each candidate shows up as a sonner toast (Save / Dismiss) and also in the Pending list under the toggle. Saved candidates flow into the regular corrections table and apply to future transcriptions.
+
+Implementation:
+
+- `src-tauri/src/capture.rs` — state machine, word-level diff extractor, watcher with focus-change / field-cleared / quiet-period / timeout signals.
+- `src-tauri/src/ax/mod.rs` — minimal AX FFI wrapper (no observer / run-loop complexity; polling-based).
+- `src-tauri/src/managers/history.rs` — pending rows stored in the existing `corrections` table with `kind = "pending_auto"` and `enabled = 0`; `get_active_corrections` filters them out defensively.
+- `src/App.tsx` — sonner toast listener on `auto-correction-pending`.
+- `src/components/settings/corrections/CorrectionsSettings.tsx` — toggle + pending-queue list.
+
+Needs Accessibility permission (already required for paste). Password fields (AXSubrole = AXSecureTextField) are filtered out at record time — never captured.
 
 ## Platform Notes
 

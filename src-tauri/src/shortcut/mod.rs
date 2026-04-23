@@ -1240,6 +1240,18 @@ pub fn change_ai_mode_output_mode_setting(
 
 #[tauri::command]
 #[specta::specta]
+pub fn change_auto_capture_corrections_setting(
+    app: AppHandle,
+    enabled: bool,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.auto_capture_corrections_enabled = enabled;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
 pub fn change_elevenlabs_api_key_setting(app: AppHandle, api_key: String) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     settings

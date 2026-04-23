@@ -463,6 +463,8 @@ pub struct AppSettings {
     pub elevenlabs_voice_id: String,
     #[serde(default = "default_elevenlabs_model_id")]
     pub elevenlabs_model_id: String,
+    #[serde(default)]
+    pub auto_capture_corrections_enabled: bool,
 }
 
 fn default_model() -> String {
@@ -926,6 +928,7 @@ pub fn get_default_settings() -> AppSettings {
         elevenlabs_api_keys: default_elevenlabs_api_keys(),
         elevenlabs_voice_id: default_elevenlabs_voice_id(),
         elevenlabs_model_id: default_elevenlabs_model_id(),
+        auto_capture_corrections_enabled: false,
     }
 }
 
@@ -1150,5 +1153,34 @@ mod tests {
             map.get(CLAUDE_CODE_LOCAL_PROVIDER_ID).map(String::as_str),
             Some(CLAUDE_CODE_LOCAL_DEFAULT_MODEL_ID)
         );
+    }
+
+    #[test]
+    fn auto_capture_corrections_defaults_off() {
+        let settings = get_default_settings();
+        assert!(!settings.auto_capture_corrections_enabled);
+    }
+
+    #[test]
+    fn auto_capture_corrections_serde_round_trip_defaults_off_when_absent() {
+        // Start from a serialized default, drop our field, and confirm
+        // deserialize falls back to the default (false) — this proves the
+        // #[serde(default)] attribute is working for users upgrading from
+        // a settings.json that predates the field.
+        let mut value =
+            serde_json::to_value(get_default_settings()).expect("serialize defaults");
+        if let serde_json::Value::Object(map) = &mut value {
+            assert!(map.remove("auto_capture_corrections_enabled").is_some());
+        }
+        let settings: AppSettings =
+            serde_json::from_value(value).expect("deserialize without field");
+        assert!(!settings.auto_capture_corrections_enabled);
+
+        // Explicit true should round-trip.
+        let mut with_flag = get_default_settings();
+        with_flag.auto_capture_corrections_enabled = true;
+        let serialized = serde_json::to_value(&with_flag).expect("serialize");
+        let back: AppSettings = serde_json::from_value(serialized).expect("deserialize");
+        assert!(back.auto_capture_corrections_enabled);
     }
 }

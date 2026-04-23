@@ -930,10 +930,12 @@ impl HistoryManager {
     }
 
     fn get_active_corrections_with_conn(conn: &Connection) -> Result<Vec<Correction>> {
+        // Defensive: exclude pending_auto rows explicitly even if one was
+        // toggled enabled=1 by mistake — they must not apply to transcripts.
         let mut stmt = conn.prepare(
             "SELECT id, original_text, corrected_text, history_id, created_at, enabled, kind
              FROM corrections
-             WHERE enabled = 1
+             WHERE enabled = 1 AND kind != 'pending_auto'
              ORDER BY created_at ASC",
         )?;
         let rows = stmt
@@ -959,6 +961,78 @@ impl HistoryManager {
         let deleted = conn.execute("DELETE FROM corrections WHERE id = ?1", params![id])?;
         if deleted == 0 {
             return Err(anyhow!("Correction {} not found", id));
+        }
+        Ok(())
+    }
+
+    /// Insert a pending auto-captured correction candidate. Stored with
+    /// `enabled = 0` and `kind = 'pending_auto'` so it does NOT apply to
+    /// future transcripts until the user accepts it via `promote_pending_auto`.
+    pub fn insert_pending_auto_correction(
+        &self,
+        original_text: String,
+        corrected_text: String,
+    ) -> Result<Correction> {
+        let original_text = original_text.trim().to_string();
+        let corrected_text = corrected_text.trim().to_string();
+        if original_text.is_empty() {
+            return Err(anyhow!("Original text must not be empty"));
+        }
+        if original_text == corrected_text {
+            return Err(anyhow!("Original and corrected text must differ"));
+        }
+
+        let conn = self.get_connection()?;
+        let created_at = Utc::now().timestamp();
+        conn.execute(
+            "INSERT INTO corrections (original_text, corrected_text, history_id, created_at, enabled, kind)
+             VALUES (?1, ?2, NULL, ?3, 0, 'pending_auto')",
+            params![&original_text, &corrected_text, created_at],
+        )?;
+        let id = conn.last_insert_rowid();
+
+        Ok(Correction {
+            id,
+            original_text,
+            corrected_text,
+            history_id: None,
+            created_at,
+            enabled: false,
+            kind: "pending_auto".to_string(),
+        })
+    }
+
+    /// List pending auto-captured correction candidates, newest first.
+    pub fn list_pending_auto_corrections(&self, limit: usize) -> Result<Vec<Correction>> {
+        let conn = self.get_connection()?;
+        Self::list_corrections_with_conn(&conn, limit, Some("pending_auto"))
+    }
+
+    /// Promote a pending_auto row into an active correction: flips `kind` to
+    /// 'correction' and `enabled` to 1.
+    pub fn promote_pending_auto(&self, id: i64) -> Result<()> {
+        let conn = self.get_connection()?;
+        let updated = conn.execute(
+            "UPDATE corrections SET kind = 'correction', enabled = 1
+             WHERE id = ?1 AND kind = 'pending_auto'",
+            params![id],
+        )?;
+        if updated == 0 {
+            return Err(anyhow!("Pending correction {} not found", id));
+        }
+        Ok(())
+    }
+
+    /// Discard a pending_auto row. Errors if the row isn't pending (so a stray
+    /// call can't accidentally delete an active correction).
+    pub fn discard_pending_auto(&self, id: i64) -> Result<()> {
+        let conn = self.get_connection()?;
+        let deleted = conn.execute(
+            "DELETE FROM corrections WHERE id = ?1 AND kind = 'pending_auto'",
+            params![id],
+        )?;
+        if deleted == 0 {
+            return Err(anyhow!("Pending correction {} not found", id));
         }
         Ok(())
     }
@@ -1306,5 +1380,133 @@ mod tests {
         assert_eq!(active[0].kind, "correction");
         assert_eq!(active[1].original_text, "my email");
         assert_eq!(active[1].kind, "reference");
+    }
+
+    fn insert_correction_row_with_enabled(
+        conn: &Connection,
+        original: &str,
+        corrected: &str,
+        created_at: i64,
+        enabled: i64,
+        kind: &str,
+    ) -> i64 {
+        conn.execute(
+            "INSERT INTO corrections (original_text, corrected_text, history_id, created_at, enabled, kind)
+             VALUES (?1, ?2, NULL, ?3, ?4, ?5)",
+            params![original, corrected, created_at, enabled, kind],
+        )
+        .expect("insert correction row");
+        conn.last_insert_rowid()
+    }
+
+    #[test]
+    fn get_active_corrections_excludes_pending_auto_even_if_enabled() {
+        let conn = setup_corrections_conn();
+        insert_correction_row(&conn, "halo", "hello", 100, "correction");
+        // Adversarial: pending_auto row with enabled=1 (should never happen,
+        // but the filter must exclude it anyway).
+        insert_correction_row_with_enabled(&conn, "rory", "Roary", 200, 1, "pending_auto");
+
+        let active = HistoryManager::get_active_corrections_with_conn(&conn)
+            .expect("get_active_corrections must succeed");
+        assert_eq!(active.len(), 1, "pending_auto must never leak into active");
+        assert_eq!(active[0].kind, "correction");
+    }
+
+    #[test]
+    fn list_pending_auto_corrections_returns_only_pending_rows() {
+        let conn = setup_corrections_conn();
+        insert_correction_row(&conn, "halo", "hello", 100, "correction");
+        insert_correction_row_with_enabled(&conn, "rory", "Roary", 200, 0, "pending_auto");
+        insert_correction_row_with_enabled(&conn, "omw", "on my way", 300, 0, "pending_auto");
+
+        let pending = HistoryManager::list_corrections_with_conn(&conn, 10, Some("pending_auto"))
+            .expect("list pending");
+        assert_eq!(pending.len(), 2);
+        // Newest-first.
+        assert_eq!(pending[0].original_text, "omw");
+        assert_eq!(pending[1].original_text, "rory");
+        assert!(pending.iter().all(|p| !p.enabled));
+        assert!(pending.iter().all(|p| p.kind == "pending_auto"));
+    }
+
+    #[test]
+    fn promote_pending_auto_flips_kind_and_enabled() {
+        let conn = setup_corrections_conn();
+        let id = insert_correction_row_with_enabled(
+            &conn,
+            "rory",
+            "Roary",
+            100,
+            0,
+            "pending_auto",
+        );
+
+        // Manually execute the same UPDATE used in promote_pending_auto, because
+        // this test operates on a raw Connection instead of a full HistoryManager.
+        let updated = conn
+            .execute(
+                "UPDATE corrections SET kind = 'correction', enabled = 1
+                 WHERE id = ?1 AND kind = 'pending_auto'",
+                params![id],
+            )
+            .expect("update");
+        assert_eq!(updated, 1);
+
+        // Post-promotion: should appear in active list.
+        let active = HistoryManager::get_active_corrections_with_conn(&conn).expect("active");
+        assert_eq!(active.len(), 1);
+        assert_eq!(active[0].kind, "correction");
+        assert!(active[0].enabled);
+
+        // Post-promotion: should NOT appear in pending list anymore.
+        let pending = HistoryManager::list_corrections_with_conn(&conn, 10, Some("pending_auto"))
+            .expect("pending");
+        assert!(pending.is_empty());
+    }
+
+    #[test]
+    fn discard_pending_auto_only_deletes_pending_kind() {
+        let conn = setup_corrections_conn();
+        let active_id = insert_correction_row_with_enabled(
+            &conn,
+            "halo",
+            "hello",
+            100,
+            1,
+            "correction",
+        );
+        let pending_id = insert_correction_row_with_enabled(
+            &conn,
+            "rory",
+            "Roary",
+            200,
+            0,
+            "pending_auto",
+        );
+
+        // Discard of a pending row should succeed.
+        let deleted = conn
+            .execute(
+                "DELETE FROM corrections WHERE id = ?1 AND kind = 'pending_auto'",
+                params![pending_id],
+            )
+            .expect("delete pending");
+        assert_eq!(deleted, 1);
+
+        // Attempting to "discard" an active correction through the pending path
+        // must not remove it.
+        let deleted = conn
+            .execute(
+                "DELETE FROM corrections WHERE id = ?1 AND kind = 'pending_auto'",
+                params![active_id],
+            )
+            .expect("noop delete");
+        assert_eq!(deleted, 0, "must not delete active corrections via pending path");
+
+        let remaining =
+            HistoryManager::list_corrections_with_conn(&conn, 10, None).expect("list all");
+        assert_eq!(remaining.len(), 1);
+        assert_eq!(remaining[0].id, active_id);
     }
 }

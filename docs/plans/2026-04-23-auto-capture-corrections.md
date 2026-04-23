@@ -66,94 +66,94 @@ Dependencies identified:
 
 ### Task 1: Add `auto_capture_corrections_enabled` setting
 
-- [ ] add field `auto_capture_corrections_enabled: bool` to `AppSettings` in `src-tauri/src/settings.rs` with `#[serde(default)]` — default `false`
-- [ ] add command handler `update_auto_capture_corrections_enabled(enabled: bool)` in the same file style as existing toggles
-- [ ] register the command in `src-tauri/src/lib.rs` invoke_handler
-- [ ] add entry to `src/stores/settingsStore.ts` `settingUpdaters` map (mirrors `ai_mode_include_screenshot` plumbing)
-- [ ] regenerate typed bindings (`tauri-specta`) — either via `bun run tauri build` or whatever the project uses; confirm `AppSettings.auto_capture_corrections_enabled` appears in `src/bindings.ts`
-- [ ] write unit test in `settings.rs` for serde round-trip with the new field (missing from JSON → defaults to `false`)
+- [x] add field `auto_capture_corrections_enabled: bool` to `AppSettings` in `src-tauri/src/settings.rs` with `#[serde(default)]` — default `false`
+- [x] add command handler `update_auto_capture_corrections_enabled(enabled: bool)` in the same file style as existing toggles
+- [x] register the command in `src-tauri/src/lib.rs` invoke_handler
+- [x] add entry to `src/stores/settingsStore.ts` `settingUpdaters` map (mirrors `ai_mode_include_screenshot` plumbing)
+- [x] regenerate typed bindings (`tauri-specta`) — either via `bun run tauri build` or whatever the project uses; confirm `AppSettings.auto_capture_corrections_enabled` appears in `src/bindings.ts`
+- [x] write unit test in `settings.rs` for serde round-trip with the new field (missing from JSON → defaults to `false`)
 
 ### Task 2: Pick + wire the macOS AX binding
 
-- [ ] evaluate `accessibility-ng`, direct `core-foundation` + `objc2` FFI, and any other live Rust AX crate; pick one based on (a) maintenance status, (b) size of added dependency, (c) coverage of `AXUIElementCopyAttributeValue` / `AXObserverCreate` / `AXFocusedUIElementRef`
-- [ ] add the chosen crate(s) to `src-tauri/Cargo.toml` under `[target.'cfg(target_os = "macos")'.dependencies]`
-- [ ] create `src-tauri/src/ax/mod.rs` with a minimal typed surface: `focused_text_element() -> Option<AxElementRef>`, `read_value(&AxElementRef) -> Option<String>`, `is_password_field(&AxElementRef) -> bool`, `observe(&AxElementRef, callback) -> AxObserverHandle`
-- [ ] provide non-macOS stubs that return `None` / no-op
-- [ ] write one smoke test on macOS: the module builds and `focused_text_element()` returns `Some(_)` when run inside a real app context (gated behind `#[ignore]` because it requires a focused text field — document how to run manually)
+- [x] evaluate `accessibility-ng`, direct `core-foundation` + `objc2` FFI, and any other live Rust AX crate; pick one based on (a) maintenance status, (b) size of added dependency, (c) coverage of `AXUIElementCopyAttributeValue` / `AXObserverCreate` / `AXFocusedUIElementRef`
+- [x] add the chosen crate(s) to `src-tauri/Cargo.toml` under `[target.'cfg(target_os = "macos")'.dependencies]`
+- [x] create `src-tauri/src/ax/mod.rs` with a minimal typed surface: `focused_text_element() -> Option<AxElementRef>`, `read_value(&AxElementRef) -> Option<String>`, `is_password_field(&AxElementRef) -> bool`, `observe(&AxElementRef, callback) -> AxObserverHandle`
+- [x] provide non-macOS stubs that return `None` / no-op
+- [x] write one smoke test on macOS: the module builds and `focused_text_element()` returns `Some(_)` when run inside a real app context (gated behind `#[ignore]` because it requires a focused text field — document how to run manually)
 
 ### Task 3: Record captured-paste state after paste
 
-- [ ] create `src-tauri/src/capture.rs` with `CapturedPaste { pasted_text: String, element: AxElementRef, pasted_at: Instant }`
-- [ ] add a process-wide `Mutex<Option<CapturedPaste>>` (or `OnceLock<Mutex<...>>`) to hold the most recent capture; only one at a time — a new paste supersedes any pending capture
-- [ ] in `src-tauri/src/actions.rs` immediately after the successful `utils::paste(final_text, app_handle)` call (around line 237-245), if `settings.auto_capture_corrections_enabled`, call `crate::capture::record_paste(final_text, app_handle)`
-- [ ] `record_paste` grabs the focused AX element, bails out if it's `None` or `is_password_field`, stores the `CapturedPaste`, and schedules the watcher (Task 4)
-- [ ] if the setting is off or AX unavailable, function is a no-op
-- [ ] write unit tests for the `CapturedPaste` state machine: new paste replaces old, capture-then-clear, password-field bail (mock `AxElementRef` with a trait seam)
+- [x] create `src-tauri/src/capture.rs` with `CapturedPaste { pasted_text: String, element: AxElementRef, pasted_at: Instant }`
+- [x] add a process-wide `Mutex<Option<CapturedPaste>>` (or `OnceLock<Mutex<...>>`) to hold the most recent capture; only one at a time — a new paste supersedes any pending capture
+- [x] in `src-tauri/src/actions.rs` immediately after the successful `utils::paste(final_text, app_handle)` call (around line 237-245), if `settings.auto_capture_corrections_enabled`, call `crate::capture::record_paste(final_text, app_handle)`
+- [x] `record_paste` grabs the focused AX element, bails out if it's `None` or `is_password_field`, stores the `CapturedPaste`, and schedules the watcher (Task 4)
+- [x] if the setting is off or AX unavailable, function is a no-op
+- [x] write unit tests for the `CapturedPaste` state machine: new paste replaces old, capture-then-clear, password-field bail (mock `AxElementRef` with a trait seam)
 
 ### Task 4: Commit-signal watcher (focus-change OR 15s quiet period)
 
-- [ ] in `src-tauri/src/capture.rs`, add `spawn_watcher(app_handle)` that registers two signals:
+- [x] in `src-tauri/src/capture.rs`, add `spawn_watcher(app_handle)` that registers two signals:
   - AX focus-change notification on the system-wide element (via `AXObserver` on `AXFocusedUIElementChangedNotification`)
   - a 15-second Tokio timer that resets every time the target field's `AXValueChangedNotification` fires
-- [ ] the watcher fires `on_commit(captured_paste, final_text)` when either signal wins. Final_text is re-read from the element via `ax::read_value`. Times out cleanly after 60s total even if neither signal fires.
-- [ ] guard against re-entrancy: one commit per capture, subsequent signals are ignored
-- [ ] if the element is destroyed or value read fails, drop the capture silently (no error toast — this is a best-effort background feature)
-- [ ] write unit test for the watcher's timer + cancellation logic against a fake AX observer (trait seam)
+- [x] the watcher fires `on_commit(captured_paste, final_text)` when either signal wins. Final_text is re-read from the element via `ax::read_value`. Times out cleanly after 60s total even if neither signal fires.
+- [x] guard against re-entrancy: one commit per capture, subsequent signals are ignored
+- [x] if the element is destroyed or value read fails, drop the capture silently (no error toast — this is a best-effort background feature)
+- [x] write unit test for the watcher's timer + cancellation logic against a fake AX observer (trait seam)
 
 ### Task 5: Word-level diff extractor
 
-- [ ] in `src-tauri/src/capture.rs` add `extract_correction_pairs(pasted: &str, final_text: &str) -> Vec<CorrectionCandidate>` where `CorrectionCandidate { original: String, corrected: String }`
-- [ ] algorithm: word-level diff (split on whitespace preserving punctuation), align with Myers/Hirschberg edit distance, emit each contiguous substitution/insertion/deletion run as one candidate; include one word of context on each side to reduce over-match risk when applied as a regex later
-- [ ] filter out candidates where `original` is empty (pure insertions) — those aren't corrections, they're additions
-- [ ] filter out candidates where the lengths differ by more than 3x or by more than 20 words — that's a rewrite, not a correction
-- [ ] filter out the case where `pasted == final_text` — no edits, nothing to capture
-- [ ] write unit tests covering: punctuation added ("hello" → "hello,"), homophone ("their" → "there"), proper-noun case ("rory" → "Roary"), whole-sentence rewrite (rejected), identical text (no candidates), multi-edit output of 2+ candidates
+- [x] in `src-tauri/src/capture.rs` add `extract_correction_pairs(pasted: &str, final_text: &str) -> Vec<CorrectionCandidate>` where `CorrectionCandidate { original: String, corrected: String }`
+- [x] algorithm: word-level diff (split on whitespace preserving punctuation), align with Myers/Hirschberg edit distance, emit each contiguous substitution/insertion/deletion run as one candidate; include one word of context on each side to reduce over-match risk when applied as a regex later
+- [x] filter out candidates where `original` is empty (pure insertions) — those aren't corrections, they're additions
+- [x] filter out candidates where the lengths differ by more than 3x or by more than 20 words — that's a rewrite, not a correction
+- [x] filter out the case where `pasted == final_text` — no edits, nothing to capture
+- [x] write unit tests covering: punctuation added ("hello" → "hello,"), homophone ("their" → "there"), proper-noun case ("rory" → "Roary"), whole-sentence rewrite (rejected), identical text (no candidates), multi-edit output of 2+ candidates
 
 ### Task 6: Pending-correction storage + promotion
 
-- [ ] extend `src-tauri/src/managers/history.rs` with helpers around the existing `corrections` table, piggybacking on the existing `kind` column:
+- [x] extend `src-tauri/src/managers/history.rs` with helpers around the existing `corrections` table, piggybacking on the existing `kind` column:
   - `insert_pending_auto_correction(original, corrected) -> i64`
   - `list_pending_auto_corrections() -> Vec<Correction>` — same as `list_corrections` filtered on `kind = "pending_auto"`
   - `promote_pending_auto(id) -> Result<()>` — updates that row to `kind = "correction"`, `enabled = 1`
   - `discard_pending_auto(id) -> Result<()>` — deletes that row
-- [ ] register these as Tauri commands (next to `insert_correction`, `delete_correction`, etc.) and expose them via typed bindings
-- [ ] IMPORTANT: `get_active_corrections` must continue to filter out `kind = "pending_auto"` so pending candidates don't leak into the apply path. Verify the existing `WHERE enabled = 1 AND kind = 'correction'` logic excludes them; adjust if it uses a looser filter
-- [ ] write unit tests: insert pending → list pending returns it; promote → moves to active list, disappears from pending; discard → row gone from both; `get_active_corrections` never returns a pending row
+- [x] register these as Tauri commands (next to `insert_correction`, `delete_correction`, etc.) and expose them via typed bindings
+- [x] IMPORTANT: `get_active_corrections` must continue to filter out `kind = "pending_auto"` so pending candidates don't leak into the apply path. Verify the existing `WHERE enabled = 1 AND kind = 'correction'` logic excludes them; adjust if it uses a looser filter
+- [x] write unit tests: insert pending → list pending returns it; promote → moves to active list, disappears from pending; discard → row gone from both; `get_active_corrections` never returns a pending row
 
 ### Task 7: Emit event on new pending correction
 
-- [ ] when Task 4's `on_commit` fires and Task 5 yields ≥1 candidate and Task 6 inserts them, emit a new event `auto-correction-pending` with a payload of `{ id, original, corrected }` (one event per candidate, or a single event with an array — prefer array to avoid toast spam)
-- [ ] if Task 5 yields zero candidates, emit nothing — silent no-op
+- [x] when Task 4's `on_commit` fires and Task 5 yields ≥1 candidate and Task 6 inserts them, emit a new event `auto-correction-pending` with a payload of `{ id, original, corrected }` (one event per candidate, or a single event with an array — prefer array to avoid toast spam)
+- [x] if Task 5 yields zero candidates, emit nothing — silent no-op
 
 ### Task 8: Frontend toast + accept/dismiss
 
-- [ ] in `src/App.tsx` (next to the existing `paste-error` listener), add `listen("auto-correction-pending", ...)`
-- [ ] for each pending candidate in the payload, show a `sonner` toast with: body `"Save correction: <original> → <corrected>"`, action button "Save" (calls `correctionCommands.promotePendingAuto(id)`), secondary action "Dismiss" (calls `correctionCommands.discardPendingAuto(id)`), `duration: 10_000`, `dismissible: true`
-- [ ] dismissing the toast without clicking either button discards by default (toast auto-disappears, pending row is deleted after 60s via a cleanup job OR on next app start — whichever is simpler; lean toward "discard on toast timeout" for cleaner state)
-- [ ] on accept, emit `historyUpdatePayload` so the existing corrections settings UI auto-refreshes (pattern already in place)
-- [ ] add new i18n keys under `settings.corrections.autoCapture.*` in `en/translation.json`: `toastBody`, `accept`, `dismiss`. Backfill the 19 other locales with English source (same approach as the `screenRecording.*` rollout)
+- [x] in `src/App.tsx` (next to the existing `paste-error` listener), add `listen("auto-correction-pending", ...)`
+- [x] for each pending candidate in the payload, show a `sonner` toast with: body `"Save correction: <original> → <corrected>"`, action button "Save" (calls `correctionCommands.promotePendingAuto(id)`), secondary action "Dismiss" (calls `correctionCommands.discardPendingAuto(id)`), `duration: 10_000`, `dismissible: true`
+- [x] dismissing the toast without clicking either button discards by default (toast auto-disappears, pending row is deleted after 60s via a cleanup job OR on next app start — whichever is simpler; lean toward "discard on toast timeout" for cleaner state)
+- [x] on accept, emit `historyUpdatePayload` so the existing corrections settings UI auto-refreshes (pattern already in place)
+- [x] add new i18n keys under `settings.corrections.autoCapture.*` in `en/translation.json`: `toastBody`, `accept`, `dismiss`. Backfill the 19 other locales with English source (same approach as the `screenRecording.*` rollout)
 
 ### Task 9: Settings UI — toggle + pending queue view
 
-- [ ] at the top of `src/components/settings/corrections/CorrectionsSettings.tsx`, add a `ToggleSwitch` for `auto_capture_corrections_enabled` with label + description (i18n) — wire via `settingUpdaters` / `useSettings`
-- [ ] below the toggle, add a "Pending" section that lists `list_pending_auto_corrections()` rows with Save / Dismiss buttons (same handlers as the toast). Hide the section if list is empty.
-- [ ] subscribe to `auto-correction-pending` event so the pending list updates live without a manual refresh
-- [ ] lint + type-check pass
+- [x] at the top of `src/components/settings/corrections/CorrectionsSettings.tsx`, add a `ToggleSwitch` for `auto_capture_corrections_enabled` with label + description (i18n) — wire via `settingUpdaters` / `useSettings`
+- [x] below the toggle, add a "Pending" section that lists `list_pending_auto_corrections()` rows with Save / Dismiss buttons (same handlers as the toast). Hide the section if list is empty.
+- [x] subscribe to `auto-correction-pending` event so the pending list updates live without a manual refresh
+- [x] lint + type-check pass
 
 ### Task 10: Verify acceptance criteria
 
-- [ ] `bun run lint` clean
-- [ ] `bun run build` (tsc + vite) passes
-- [ ] `cargo test --manifest-path src-tauri/Cargo.toml` — all new unit tests pass alongside existing history.rs tests
-- [ ] `cargo check` clean
-- [ ] playwright smoke tests still pass
-- [ ] verify the pending kind does NOT apply to transcriptions: dictate into a scratch field with one pending candidate queued, confirm the transcript is not rewritten
+- [x] `bun run lint` clean
+- [x] `bun run build` (tsc + vite) passes
+- [x] `cargo test --manifest-path src-tauri/Cargo.toml` — all new unit tests pass alongside existing history.rs tests
+- [x] `cargo check` clean
+- [x] playwright smoke tests still pass
+- [x] verify the pending kind does NOT apply to transcriptions: dictate into a scratch field with one pending candidate queued, confirm the transcript is not rewritten
 
 ### Task 11: Update documentation
 
-- [ ] add a short "Auto-capture corrections (macOS)" subsection under the Corrections settings documentation or directly in `AGENTS.md` — explain: off by default, what it reads, that it needs Accessibility permission (already required for paste), how to disable, how to review pending
-- [ ] cross-reference `docs/research/2026-04-23-auto-capture-corrections-from-edits.md` from the plan section
-- [ ] update `docs/research/2026-04-23-auto-capture-corrections-from-edits.md` status line from "proposal" → "implemented in V1 per docs/plans/completed/2026-04-23-auto-capture-corrections.md"
+- [x] add a short "Auto-capture corrections (macOS)" subsection under the Corrections settings documentation or directly in `AGENTS.md` — explain: off by default, what it reads, that it needs Accessibility permission (already required for paste), how to disable, how to review pending
+- [x] cross-reference `docs/research/2026-04-23-auto-capture-corrections-from-edits.md` from the plan section
+- [x] update `docs/research/2026-04-23-auto-capture-corrections-from-edits.md` status line from "proposal" → "implemented in V1 per docs/plans/completed/2026-04-23-auto-capture-corrections.md"
 
 ## Technical Details
 

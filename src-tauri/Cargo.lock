@@ -2552,6 +2552,8 @@ dependencies = [
  "base64 0.22.1",
  "chrono",
  "clap",
+ "core-foundation 0.10.1",
+ "core-foundation-sys 0.8.7",
  "cpal",
  "enigo",
  "env_filter",

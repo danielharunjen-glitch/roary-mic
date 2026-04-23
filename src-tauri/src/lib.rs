@@ -1,5 +1,7 @@
 mod actions;
 mod ai_reply;
+mod ax;
+mod capture;
 #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 mod apple_intelligence;
 mod audio_feedback;
@@ -364,6 +366,7 @@ pub fn run(cli_args: CliArgs) {
             shortcut::change_ai_mode_prompt_setting,
             shortcut::change_ai_mode_include_screenshot_setting,
             shortcut::change_ai_mode_output_mode_setting,
+            shortcut::change_auto_capture_corrections_setting,
             shortcut::change_elevenlabs_api_key_setting,
             shortcut::change_elevenlabs_voice_id_setting,
             shortcut::change_elevenlabs_model_id_setting,
@@ -453,6 +456,9 @@ pub fn run(cli_args: CliArgs) {
             commands::history::set_correction_enabled,
             commands::history::delete_correction,
             commands::history::insert_correction,
+            commands::history::list_pending_auto_corrections,
+            commands::history::promote_pending_auto_correction,
+            commands::history::discard_pending_auto_correction,
             helpers::clamshell::is_laptop,
         ])
         .events(collect_events![managers::history::HistoryUpdatePayload,]);

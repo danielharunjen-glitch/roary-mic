@@ -1,6 +1,6 @@
 # Auto-capture corrections from post-paste edits
 
-**Status:** proposal. Not implemented. Sketched during a voice-dictation session on 2026-04-23.
+**Status:** implemented in V1 per `docs/plans/2026-04-23-auto-capture-corrections.md`. Original proposal sketched during a voice-dictation session on 2026-04-23.
 
 ## The current gap
 

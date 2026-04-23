@@ -193,6 +193,43 @@ pub async fn insert_correction(
 
 #[tauri::command]
 #[specta::specta]
+pub async fn list_pending_auto_corrections(
+    _app: AppHandle,
+    history_manager: State<'_, Arc<HistoryManager>>,
+    limit: Option<usize>,
+) -> Result<Vec<Correction>, String> {
+    let limit = limit.unwrap_or(50).min(500);
+    history_manager
+        .list_pending_auto_corrections(limit)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn promote_pending_auto_correction(
+    _app: AppHandle,
+    history_manager: State<'_, Arc<HistoryManager>>,
+    id: i64,
+) -> Result<(), String> {
+    history_manager
+        .promote_pending_auto(id)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn discard_pending_auto_correction(
+    _app: AppHandle,
+    history_manager: State<'_, Arc<HistoryManager>>,
+    id: i64,
+) -> Result<(), String> {
+    history_manager
+        .discard_pending_auto(id)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
 pub async fn update_recording_retention_period(
     app: AppHandle,
     history_manager: State<'_, Arc<HistoryManager>>,

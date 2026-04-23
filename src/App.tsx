@@ -8,6 +8,10 @@ import {
   checkMicrophonePermission,
 } from "tauri-plugin-macos-permissions-api";
 import { ModelStateEvent, RecordingErrorEvent } from "./lib/types/events";
+import {
+  correctionCommands,
+  type PendingCorrectionEvent,
+} from "./lib/corrections";
 import "./App.css";
 import AccessibilityPermissions from "./components/AccessibilityPermissions";
 import Footer from "./components/footer";
@@ -132,6 +136,52 @@ function App() {
         description: t("errors.pasteFailed"),
       });
     });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [t]);
+
+  // Listen for auto-captured correction candidates. One event per dictation
+  // commit, may carry multiple candidates.
+  useEffect(() => {
+    const unlisten = listen<PendingCorrectionEvent>(
+      "auto-correction-pending",
+      (event) => {
+        for (const candidate of event.payload.candidates) {
+          toast(t("autoCapture.toastTitle"), {
+            description: t("autoCapture.toastBody", {
+              original: candidate.original,
+              corrected: candidate.corrected,
+            }),
+            duration: 10_000,
+            action: {
+              label: t("autoCapture.save"),
+              onClick: async () => {
+                const res = await correctionCommands.promotePendingAuto(
+                  candidate.id,
+                );
+                if (res.status === "ok") {
+                  toast.success(t("autoCapture.savedToast"));
+                } else {
+                  toast.error(t("autoCapture.saveError"));
+                }
+              },
+            },
+            cancel: {
+              label: t("autoCapture.dismiss"),
+              onClick: async () => {
+                const res = await correctionCommands.discardPendingAuto(
+                  candidate.id,
+                );
+                if (res.status !== "ok") {
+                  toast.error(t("autoCapture.discardError"));
+                }
+              },
+            },
+          });
+        }
+      },
+    );
     return () => {
       unlisten.then((fn) => fn());
     };

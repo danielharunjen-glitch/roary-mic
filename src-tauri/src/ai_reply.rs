@@ -1,4 +1,5 @@
 use log::{debug, error};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Listener, Manager, WebviewUrl, WebviewWindowBuilder};
 
@@ -12,11 +13,17 @@ pub struct AiReplyPayload {
     pub text: String,
 }
 
-/// Holds a reply payload while the window's JS is still initializing. When the
-/// frontend emits `ai-reply-window-ready` we replay the pending text so no
-/// event is ever dropped.
+/// Holds a reply payload while the window's JS is still initializing. Once the
+/// frontend emits `ai-reply-window-ready`, `listener_ready` flips to true and
+/// we skip the pending mailbox entirely (the listener is attached, emits are
+/// delivered directly). Without this flag, every `show_ai_reply_window` would
+/// store a copy of the text forever, leading to stale replays on any future
+/// webview reload.
 #[derive(Default)]
-pub struct AiReplyPending(pub Mutex<Option<String>>);
+pub struct AiReplyPending {
+    pub text: Mutex<Option<String>>,
+    pub listener_ready: AtomicBool,
+}
 
 /// Create the AI reply window eagerly (hidden) and register the ready-handshake.
 /// Called once at startup so the React listener is registered before any
@@ -26,14 +33,16 @@ pub fn create_ai_reply_window(app: &AppHandle) {
     ensure_ai_reply_window(app);
 
     // Frontend emits this once `listen("ai-mode-reply-ready", ...)` has
-    // resolved; if a payload was queued before mount, we replay it now.
+    // resolved; if a payload was queued before mount, we replay it now, and
+    // mark the listener as ready so future emits skip the mailbox.
     let handle = app.clone();
     app.listen("ai-reply-window-ready", move |_| {
         let pending = handle.state::<AiReplyPending>();
         let text = {
-            let mut guard = pending.0.lock().unwrap_or_else(|p| p.into_inner());
+            let mut guard = pending.text.lock().unwrap_or_else(|p| p.into_inner());
             guard.take()
         };
+        pending.listener_ready.store(true, Ordering::Release);
         if let Some(text) = text {
             if let Err(e) = handle.emit("ai-mode-reply-ready", AiReplyPayload { text }) {
                 error!("Failed to replay ai-mode-reply-ready: {}", e);
@@ -50,15 +59,18 @@ pub fn create_ai_reply_window(app: &AppHandle) {
 pub fn show_ai_reply_window(app: &AppHandle, text: String) {
     ensure_ai_reply_window(app);
 
+    // Only queue into the mailbox when the frontend listener hasn't signalled
+    // readiness yet. Once the handshake has fired we know every future emit
+    // lands, so skipping the mailbox prevents stale text from surviving to the
+    // next webview reload.
     if let Some(pending) = app.try_state::<AiReplyPending>() {
-        if let Ok(mut guard) = pending.0.lock() {
-            *guard = Some(text.clone());
+        if !pending.listener_ready.load(Ordering::Acquire) {
+            if let Ok(mut guard) = pending.text.lock() {
+                *guard = Some(text.clone());
+            }
         }
     }
 
-    // Emit for the common case where the listener is already attached. If the
-    // listener isn't up yet, the frontend's ready handshake will replay via
-    // AiReplyPending above.
     if let Err(e) = app.emit("ai-mode-reply-ready", AiReplyPayload { text }) {
         error!("Failed to emit ai-mode-reply-ready: {}", e);
     }

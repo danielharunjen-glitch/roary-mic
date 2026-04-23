@@ -1,8 +1,8 @@
 use serde_json::Value;
-use std::io::Write;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::time::Duration;
+use tokio::io::AsyncWriteExt;
 
 /// Maximum time we wait for the `claude` CLI to produce output before killing
 /// the subprocess. Chosen to cover typical agent loops while still freeing the
@@ -109,44 +109,45 @@ pub async fn run_claude_code(
         (None, false) => prompt.to_string(),
     };
 
-    // Offload the blocking subprocess to the runtime's blocking pool so we
-    // don't stall the async executor. Run it inside a tokio timeout so an
-    // unresponsive CLI (expired auth, MFA prompt, rate-limit stall) cannot
-    // hang AI mode indefinitely.
-    let output = tokio::time::timeout(
-        CLAUDE_CLI_TIMEOUT,
-        tauri::async_runtime::spawn_blocking(move || {
-            let mut child = Command::new("claude")
-                .arg("-p")
-                .arg("--output-format")
-                .arg("stream-json")
-                .arg("--verbose")
-                .arg("--dangerously-skip-permissions")
-                .stdin(Stdio::piped())
-                .stdout(Stdio::piped())
-                .stderr(Stdio::piped())
-                .spawn()
-                .map_err(|e| format!("Failed to spawn claude CLI: {e}"))?;
+    // Use tokio::process so the child is killed when the timeout future drops
+    // it (kill_on_drop). std::process + spawn_blocking would leak the process
+    // and the blocking-pool thread on timeout because spawn_blocking tasks
+    // cannot be cancelled.
+    let output = tokio::time::timeout(CLAUDE_CLI_TIMEOUT, async move {
+        let mut child = tokio::process::Command::new("claude")
+            .arg("-p")
+            .arg("--output-format")
+            .arg("stream-json")
+            .arg("--verbose")
+            .arg("--dangerously-skip-permissions")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .kill_on_drop(true)
+            .spawn()
+            .map_err(|e| format!("Failed to spawn claude CLI: {e}"))?;
 
-            if let Some(mut stdin) = child.stdin.take() {
-                stdin
-                    .write_all(full_prompt.as_bytes())
-                    .map_err(|e| format!("Failed to write prompt to claude stdin: {e}"))?;
-            }
+        if let Some(mut stdin) = child.stdin.take() {
+            stdin
+                .write_all(full_prompt.as_bytes())
+                .await
+                .map_err(|e| format!("Failed to write prompt to claude stdin: {e}"))?;
+            // Drop stdin so the CLI sees EOF and starts processing.
+            drop(stdin);
+        }
 
-            child
-                .wait_with_output()
-                .map_err(|e| format!("Failed to wait for claude CLI: {e}"))
-        }),
-    )
+        child
+            .wait_with_output()
+            .await
+            .map_err(|e| format!("Failed to wait for claude CLI: {e}"))
+    })
     .await
     .map_err(|_| {
         format!(
             "claude CLI timed out after {}s (stuck auth prompt, MFA, or rate-limit backoff?)",
             CLAUDE_CLI_TIMEOUT.as_secs()
         )
-    })?
-    .map_err(|e| format!("claude subprocess task panicked: {e}"))??;
+    })??;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);

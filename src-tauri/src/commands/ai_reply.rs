@@ -1,0 +1,59 @@
+use crate::ai_reply::{hide_ai_reply_window, show_ai_reply_window};
+use crate::settings::get_settings;
+use crate::tts;
+use crate::utils;
+use log::{debug, error};
+use tauri::{AppHandle, Emitter};
+
+#[tauri::command]
+#[specta::specta]
+pub fn ai_reply_show(app: AppHandle, text: String) -> Result<(), String> {
+    show_ai_reply_window(&app, text);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn ai_reply_paste(app: AppHandle, text: String) -> Result<(), String> {
+    hide_ai_reply_window(&app);
+    let ah = app.clone();
+    // Hop to the main thread — Enigo paste requires it on macOS.
+    app.run_on_main_thread(move || match utils::paste(text, ah.clone()) {
+        Ok(()) => debug!("AI reply text pasted via window"),
+        Err(e) => {
+            error!("Failed to paste AI reply text: {}", e);
+            let _ = ah.emit("paste-error", ());
+        }
+    })
+    .map_err(|e| format!("Failed to run paste on main thread: {}", e))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn ai_reply_speak(app: AppHandle, text: String) -> Result<(), String> {
+    let settings = get_settings(&app);
+    let api_key = settings.elevenlabs_api_key();
+    let voice_id = settings.elevenlabs_voice_id.clone();
+    let model_id = settings.elevenlabs_model_id.clone();
+
+    hide_ai_reply_window(&app);
+
+    let mp3 = tts::speak_via_elevenlabs(&api_key, &voice_id, &model_id, &text).await?;
+
+    // Playback blocks until the audio finishes — offload it so the command
+    // resolves immediately and the event loop doesn't hang.
+    tauri::async_runtime::spawn_blocking(move || {
+        if let Err(e) = tts::play_mp3_blocking(mp3) {
+            error!("Failed to play ElevenLabs MP3: {}", e);
+        }
+    });
+
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn ai_reply_cancel(app: AppHandle) -> Result<(), String> {
+    hide_ai_reply_window(&app);
+    Ok(())
+}

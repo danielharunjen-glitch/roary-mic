@@ -1217,3 +1217,44 @@ pub fn change_ai_mode_include_screenshot_setting(
     settings::write_settings(&app, settings);
     Ok(())
 }
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_ai_mode_output_mode_setting(
+    app: AppHandle,
+    mode: settings::AiModeOutputMode,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.ai_mode_output_mode = mode;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_elevenlabs_api_key_setting(app: AppHandle, api_key: String) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings
+        .elevenlabs_api_keys
+        .insert("elevenlabs".to_string(), api_key);
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_elevenlabs_voice_id_setting(app: AppHandle, voice_id: String) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.elevenlabs_voice_id = voice_id;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_elevenlabs_model_id_setting(app: AppHandle, model_id: String) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.elevenlabs_model_id = model_id;
+    settings::write_settings(&app, settings);
+    Ok(())
+}

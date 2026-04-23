@@ -1,3 +1,4 @@
+pub mod ai_reply;
 pub mod audio;
 pub mod history;
 pub mod models;

@@ -498,7 +498,29 @@
       "includeScreenshotLabel": "Attach screenshot",
       "includeScreenshotDescription": "Capture the primary display and send it as visual context. Disable for faster, cheaper requests.",
       "screenshotToggleError": "Failed to change screenshot setting.",
-      "toggleError": "Failed to toggle AI Mode."
+      "toggleError": "Failed to toggle AI Mode.",
+      "outputMode": {
+        "label": "When the reply is ready",
+        "description": "Choose whether the reply is pasted automatically, or opens a window with Paste/Speak options.",
+        "autoPaste": "Paste automatically",
+        "promptWindow": "Ask me (window with Paste/Speak)",
+        "error": "Failed to change output mode."
+      },
+      "elevenlabs": {
+        "sectionTitle": "ElevenLabs (for Speak)",
+        "sectionDescription": "Voice playback uses ElevenLabs text-to-speech. Leave blank to disable Speak.",
+        "apiKeyLabel": "ElevenLabs API Key",
+        "apiKeyPlaceholder": "Paste your ElevenLabs API key",
+        "apiKeyError": "Failed to save ElevenLabs API key.",
+        "voiceLabel": "Voice ID",
+        "voicePlaceholder": "e.g. 21m00Tcm4TlvDq8ikWAM",
+        "voiceHelpText": "Find voice IDs on elevenlabs.io",
+        "voiceError": "Failed to save voice ID.",
+        "modelLabel": "Model ID",
+        "modelPlaceholder": "eleven_turbo_v2_5",
+        "modelHelpText": "Default works well; override for other ElevenLabs models.",
+        "modelError": "Failed to save model ID."
+      }
     },
     "debug": {
       "title": "Debug",
@@ -675,5 +697,16 @@
   "overlay": {
     "transcribing": "Transcribing...",
     "processing": "Processing..."
+  },
+  "aiReplyWindow": {
+    "title": "AI Reply",
+    "subtitle": "Press Enter to paste, Esc to cancel",
+    "textAreaLabel": "AI reply text",
+    "paste": "Paste",
+    "speak": "Speak",
+    "speaking": "Speaking…",
+    "cancel": "Cancel",
+    "pasteError": "Failed to paste reply.",
+    "speakError": "Failed to generate speech."
   }
 }

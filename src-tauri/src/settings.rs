@@ -147,6 +147,19 @@ pub enum ClipboardHandling {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
 #[serde(rename_all = "snake_case")]
+pub enum AiModeOutputMode {
+    AutoPaste,
+    PromptWindow,
+}
+
+impl Default for AiModeOutputMode {
+    fn default() -> Self {
+        AiModeOutputMode::PromptWindow
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
+#[serde(rename_all = "snake_case")]
 pub enum AutoSubmitKey {
     Enter,
     CtrlEnter,
@@ -440,6 +453,14 @@ pub struct AppSettings {
     pub ai_mode_prompt: String,
     #[serde(default = "default_ai_mode_include_screenshot")]
     pub ai_mode_include_screenshot: bool,
+    #[serde(default)]
+    pub ai_mode_output_mode: AiModeOutputMode,
+    #[serde(default = "default_elevenlabs_api_keys")]
+    pub elevenlabs_api_keys: SecretMap,
+    #[serde(default = "default_elevenlabs_voice_id")]
+    pub elevenlabs_voice_id: String,
+    #[serde(default = "default_elevenlabs_model_id")]
+    pub elevenlabs_model_id: String,
 }
 
 fn default_model() -> String {
@@ -545,6 +566,21 @@ fn default_ai_mode_prompt() -> String {
 
 fn default_ai_mode_include_screenshot() -> bool {
     true
+}
+
+fn default_elevenlabs_api_keys() -> SecretMap {
+    let mut map = HashMap::new();
+    map.insert("elevenlabs".to_string(), String::new());
+    SecretMap(map)
+}
+
+fn default_elevenlabs_voice_id() -> String {
+    // "Rachel" — ElevenLabs' stock default voice
+    "21m00Tcm4TlvDq8ikWAM".to_string()
+}
+
+fn default_elevenlabs_model_id() -> String {
+    "eleven_turbo_v2_5".to_string()
 }
 
 fn default_post_process_providers() -> Vec<PostProcessProvider> {
@@ -867,6 +903,10 @@ pub fn get_default_settings() -> AppSettings {
         ai_mode_model: String::new(),
         ai_mode_prompt: default_ai_mode_prompt(),
         ai_mode_include_screenshot: default_ai_mode_include_screenshot(),
+        ai_mode_output_mode: AiModeOutputMode::default(),
+        elevenlabs_api_keys: default_elevenlabs_api_keys(),
+        elevenlabs_voice_id: default_elevenlabs_voice_id(),
+        elevenlabs_model_id: default_elevenlabs_model_id(),
     }
 }
 
@@ -890,6 +930,13 @@ impl AppSettings {
         self.post_process_providers
             .iter_mut()
             .find(|provider| provider.id == provider_id)
+    }
+
+    pub fn elevenlabs_api_key(&self) -> String {
+        self.elevenlabs_api_keys
+            .get("elevenlabs")
+            .cloned()
+            .unwrap_or_default()
     }
 }
 
@@ -1037,6 +1084,31 @@ mod tests {
         let map = SecretMap(HashMap::from([("key".into(), "secret".into())]));
         let out = format!("{:?}", map);
         assert!(!out.contains("secret"));
+        assert!(out.contains("[REDACTED]"));
+    }
+
+    #[test]
+    fn ai_mode_defaults_to_prompt_window() {
+        let settings = get_default_settings();
+        assert_eq!(settings.ai_mode_output_mode, AiModeOutputMode::PromptWindow);
+    }
+
+    #[test]
+    fn elevenlabs_defaults_are_sensible() {
+        let settings = get_default_settings();
+        assert_eq!(settings.elevenlabs_voice_id, "21m00Tcm4TlvDq8ikWAM");
+        assert_eq!(settings.elevenlabs_model_id, "eleven_turbo_v2_5");
+        assert_eq!(settings.elevenlabs_api_key(), "");
+    }
+
+    #[test]
+    fn elevenlabs_api_key_debug_is_redacted() {
+        let mut settings = get_default_settings();
+        settings
+            .elevenlabs_api_keys
+            .insert("elevenlabs".into(), "super-secret".into());
+        let out = format!("{:?}", settings);
+        assert!(!out.contains("super-secret"));
         assert!(out.contains("[REDACTED]"));
     }
 }

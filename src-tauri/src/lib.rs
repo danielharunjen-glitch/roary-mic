@@ -1,4 +1,5 @@
 mod actions;
+mod ai_reply;
 #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 mod apple_intelligence;
 mod audio_feedback;
@@ -19,6 +20,7 @@ mod signal_handle;
 mod transcription_coordinator;
 mod tray;
 mod tray_i18n;
+mod tts;
 mod utils;
 
 pub use cli::CliArgs;
@@ -354,6 +356,14 @@ pub fn run(cli_args: CliArgs) {
             shortcut::change_ai_mode_model_setting,
             shortcut::change_ai_mode_prompt_setting,
             shortcut::change_ai_mode_include_screenshot_setting,
+            shortcut::change_ai_mode_output_mode_setting,
+            shortcut::change_elevenlabs_api_key_setting,
+            shortcut::change_elevenlabs_voice_id_setting,
+            shortcut::change_elevenlabs_model_id_setting,
+            commands::ai_reply::ai_reply_show,
+            commands::ai_reply::ai_reply_paste,
+            commands::ai_reply::ai_reply_speak,
+            commands::ai_reply::ai_reply_cancel,
             shortcut::change_post_process_base_url_setting,
             shortcut::change_post_process_api_key_setting,
             shortcut::change_post_process_model_setting,

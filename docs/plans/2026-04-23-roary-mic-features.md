@@ -79,18 +79,18 @@ User-visible strings, not the Rust crate name.
 
 When the AI-mode hotkey fires and the LLM replies, instead of auto-pasting, open a small always-on-top window showing the text with two buttons: **Paste** and **Speak**. "Speak" sends the text to ElevenLabs TTS and plays the MP3 through the default audio output.
 
-- [ ] add `src-tauri/src/tts.rs`: `fn speak_via_elevenlabs(api_key: &str, voice_id: &str, model_id: &str, text: &str) -> Result<Vec<u8>>` — POST to `https://api.elevenlabs.io/v1/text-to-speech/{voice_id}`, header `xi-api-key`, body `{"text": text, "model_id": model_id}`, return MP3 bytes. Add tests for header construction and error-body formatting using a mock (consider `wiremock` or just split URL building into a pure helper).
-- [ ] add playback: existing `rodio` dep — create a `Decoder::new_mp3` source from the bytes and play on default sink
-- [ ] settings.rs: add `ai_mode_output_mode: String` (`"auto_paste"` | `"prompt_window"`, default `"prompt_window"`), `elevenlabs_api_key: String` (store in `SecretMap`-style, not plaintext), `elevenlabs_voice_id: String` (default `"21m00Tcm4TlvDq8ikWAM"` — Rachel), `elevenlabs_model_id: String` (default `"eleven_turbo_v2_5"`)
-- [ ] `tauri.conf.json`: register a second window config `ai_reply` with label `ai-reply`, initially hidden, frameless, always-on-top, 400×280, non-resizable, center-screen
-- [ ] `actions.rs::handle_ai_mode_completion`: when `ai_mode_output_mode == "prompt_window"`, instead of calling `utils::paste`, emit event `ai-mode-reply-ready` with payload `{ text: String }` and call `show_ai_reply_window(app)`
-- [ ] add commands: `ai_reply_paste(text: String)` — pastes the text and hides the window; `ai_reply_speak(text: String)` — calls `tts.rs`, plays, hides the window; `ai_reply_cancel()` — just hides
-- [ ] create `src/ai-reply/` entry: `index.html`, `main.tsx`, `AiReplyWindow.tsx` — listens for `ai-mode-reply-ready`, shows the text in a read-only textarea, three buttons: Paste (default, Enter), Speak, Cancel (Escape). Auto-focus on Paste button.
-- [ ] update `vite.config.ts` to build `ai-reply/index.html` as a second entry
-- [ ] `i18n/locales/en/translation.json`: new block `settings.aiMode.outputMode`, `settings.aiMode.elevenlabs*`, `aiReplyWindow.*`
-- [ ] `AiModeSettings.tsx`: add output-mode dropdown (Auto-paste / Ask me), ElevenLabs API key field (password), voice ID text field with a help link to https://elevenlabs.io/voices
-- [ ] tests: unit test for `tts.rs` URL + header building; unit test for settings default values
-- [ ] run `cargo test && cargo fmt --check && bun run lint && bun x tsc --noEmit`
+- [x] add `src-tauri/src/tts.rs`: `fn speak_via_elevenlabs(api_key: &str, voice_id: &str, model_id: &str, text: &str) -> Result<Vec<u8>>` — POST to `https://api.elevenlabs.io/v1/text-to-speech/{voice_id}`, header `xi-api-key`, body `{"text": text, "model_id": model_id}`, return MP3 bytes. Added URL + header builders split out as pure helpers and unit tested.
+- [x] add playback: `tts::play_mp3_blocking` uses the existing `rodio::OutputStreamBuilder::from_default_device()`, decodes via symphonia (already enabled in the git rodio fork)
+- [x] settings.rs: added `AiModeOutputMode` enum (`AutoPaste`/`PromptWindow`, default `PromptWindow`), `elevenlabs_api_keys: SecretMap` with a single `"elevenlabs"` key (so existing debug redaction applies), `elevenlabs_voice_id: String` (default Rachel), `elevenlabs_model_id: String` (default `eleven_turbo_v2_5`)
+- [x] second window registered programmatically in `src-tauri/src/ai_reply.rs::ensure_ai_reply_window` (frameless, always-on-top, 480×320, non-resizable, centered, hidden until needed). Keeping config-driven windows out of `tauri.conf.json` matches the `recording_overlay` pattern already in this repo.
+- [x] `actions.rs::handle_ai_mode_completion`: now branches on `AiModeOutputMode`; for `PromptWindow` it calls `ai_reply::show_ai_reply_window` which emits `ai-mode-reply-ready` then shows the window
+- [x] added commands `ai_reply_show`, `ai_reply_paste`, `ai_reply_speak`, `ai_reply_cancel` in `src-tauri/src/commands/ai_reply.rs` and registered them in `lib.rs`
+- [x] created `src/ai-reply/{index.html,main.tsx,AiReplyWindow.tsx}` — listens for `ai-mode-reply-ready`, renders an editable textarea with Paste (default focus + Enter outside textarea), Speak, and Cancel (Escape) buttons; shows inline error messages from the backend commands
+- [x] updated `vite.config.ts` with a third rollup input `aiReply`
+- [x] `i18n/locales/en/translation.json`: added `settings.aiMode.outputMode.*`, `settings.aiMode.elevenlabs.*`, `aiReplyWindow.*`
+- [x] `AiModeSettings.tsx`: added the output-mode dropdown, ElevenLabs API key (password), voice ID, and model ID inputs, plus link to elevenlabs.io
+- [x] tests: 8 tts tests (URL + header builders, error formatter, empty-input guards) and 2 settings tests (default output mode + redaction of the new key); all 92 lib tests still pass
+- [x] ran `cargo test --lib` (92 pass), `cargo fmt --check` (clean), `bun run lint` (clean), `bun x tsc --noEmit` (clean)
 
 ### Task 4: AI mode plugin — Claude Code subprocess provider
 

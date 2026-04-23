@@ -63,17 +63,17 @@ The code is already written but unbuilt. Seal it off before moving on.
 
 User-visible strings, not the Rust crate name.
 
-- [ ] `src-tauri/tauri.conf.json`: change `productName` `"Handy"` → `"Roary Mic"`; change `identifier` `"com.pais.handy"` → `"com.harunjen.roarymic"`; leave `mainBinaryName` unset (binary stays `handy`)
-- [ ] `src-tauri/tauri.conf.json`: remove Windows `signCommand` (references `CJ-Signing` cert we don't have); set `bundle.windows.signCommand` to `null` or delete
-- [ ] `package.json`: update `productName` if present; leave Rust `package.name` in `Cargo.toml` alone (many files `use handy::*`)
-- [ ] `src/components/icons/HandyTextLogo.tsx`: inspect — the SVG likely contains the literal "Handy" text. Swap text to "Roary Mic" while keeping the same logo styling. If the SVG uses a font-based text node, update the string; if it's pre-rasterized paths, add a small text overlay as an interim measure.
-- [ ] grep `src/` for literal `"Handy"` in JSX/TSX (not imports) — replace user-facing ones with `"Roary Mic"`. Skip comments and imports like `HandyHand`, `HandyTextLogo` (internal names).
-- [ ] grep `src/i18n/locales/en/translation.json` for `"Handy"` in any string values, replace with `"Roary Mic"`
-- [ ] update `src-tauri/src/tray.rs` / `tray_i18n.rs` tooltip + menu strings that say "Handy"
-- [ ] **record which files changed** so the same rebrand can be applied to the other 19 locales later (out of scope for this task)
-- [ ] run `cargo fmt --check && bun run lint && bun x tsc --noEmit` — all clean
-- [ ] add a test: a Rust test that reads `tauri.conf.json` and asserts `productName == "Roary Mic"` (defensive, catches accidental revert)
-- [ ] ⚠️ Document in plan that the bundle identifier change will invalidate TCC (macOS) permissions — user must re-grant Microphone, Accessibility, Screen Recording on first relaunch after installing the rebuilt app
+- [x] `src-tauri/tauri.conf.json`: change `productName` `"Handy"` → `"Roary Mic"`; change `identifier` `"com.pais.handy"` → `"com.harunjen.roarymic"`; leave `mainBinaryName` unset (binary stays `handy`)
+- [x] `src-tauri/tauri.conf.json`: remove Windows `signCommand` (references `CJ-Signing` cert we don't have); set `bundle.windows.signCommand` to `null` or delete
+- [x] `package.json`: update `productName` if present; leave Rust `package.name` in `Cargo.toml` alone (many files `use handy::*`) — no `productName` field in `package.json`, left untouched; `name` stays `handy-app`
+- [x] `src/components/icons/HandyTextLogo.tsx`: inspect — the SVG likely contains the literal "Handy" text. Swap text to "Roary Mic" while keeping the same logo styling. If the SVG uses a font-based text node, update the string; if it's pre-rasterized paths, add a small text overlay as an interim measure. — replaced pre-rasterized `<path>` logo with a font-based `<text>` node rendering `Roary Mic`, keeping the existing `logo-primary` class so theme colors still apply.
+- [x] grep `src/` for literal `"Handy"` in JSX/TSX (not imports) — replace user-facing ones with `"Roary Mic"`. Skip comments and imports like `HandyHand`, `HandyTextLogo` (internal names). — no user-facing JSX literals required changing; the only remaining `"Handy"` label is `KeyboardImplementationSelector.tsx`'s `"Handy Keys"` which is an internal implementation name paired with the `handy_keys.rs` Rust module (left intact, matches guidance).
+- [x] grep `src/i18n/locales/en/translation.json` for `"Handy"` in any string values, replace with `"Roary Mic"`
+- [x] update `src-tauri/src/tray.rs` / `tray_i18n.rs` tooltip + menu strings that say "Handy" — only `tray.rs::version_label()` hardcoded "Handy"; `tray_i18n.rs` is auto-generated from the locale files so updating `en/translation.json` was sufficient. Also updated `cli.rs` `--help` text and `lib.rs` WebviewWindow title.
+- [x] **record which files changed** so the same rebrand can be applied to the other 19 locales later (out of scope for this task) — files touched this iteration: `src-tauri/tauri.conf.json`, `src-tauri/src/tray.rs`, `src-tauri/src/cli.rs`, `src-tauri/src/lib.rs`, `src/components/icons/HandyTextLogo.tsx`, `src/i18n/locales/en/translation.json`. Locale keys that contained "Handy" and now say "Roary Mic": `settings.permissions.description`, `settings.general.shortcut.title`, `settings.general.autostart.description`, `settings.general.showTrayIcon.description`, `settings.corrections.description`, `settings.corrections.empty`, `settings.general.updateChecks.description`, `settings.about.version.description`, `settings.about.appDataDirectory.description`, `settings.about.supportDevelopment.description`, `settings.about.acknowledgments.whisper.details`, `accessibility.permissionsDescription`, `appLanguage.description` — mirror these across the other 19 locale files in a follow-up.
+- [x] run `cargo fmt --check && bun run lint && bun x tsc --noEmit` — all clean
+- [x] add a test: a Rust test that reads `tauri.conf.json` and asserts `productName == "Roary Mic"` (defensive, catches accidental revert) — `rebrand_tests::tauri_conf_product_name_is_roary_mic` in `src-tauri/src/lib.rs` also asserts the new identifier.
+- [x] ⚠️ Document in plan that the bundle identifier change will invalidate TCC (macOS) permissions — user must re-grant Microphone, Accessibility, Screen Recording on first relaunch after installing the rebuilt app (see Post-Completion section below).
 
 ### Task 3: AI mode output options window (paste or speak via ElevenLabs)
 

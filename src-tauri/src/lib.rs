@@ -523,7 +523,7 @@ pub fn run(cli_args: CliArgs) {
             // for portable mode (redirects WebView2 cache to portable Data dir)
             let mut win_builder =
                 tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::App("/".into()))
-                    .title("Handy")
+                    .title("Roary Mic")
                     .inner_size(680.0, 570.0)
                     .min_inner_size(680.0, 570.0)
                     .resizable(true)
@@ -623,4 +623,26 @@ pub fn run(cli_args: CliArgs) {
             }
             let _ = (app, event); // suppress unused warnings on non-macOS
         });
+}
+
+#[cfg(test)]
+mod rebrand_tests {
+    #[test]
+    fn tauri_conf_product_name_is_roary_mic() {
+        let manifest_dir = env!("CARGO_MANIFEST_DIR");
+        let conf_path = std::path::Path::new(manifest_dir).join("tauri.conf.json");
+        let raw = std::fs::read_to_string(&conf_path)
+            .unwrap_or_else(|e| panic!("failed to read {}: {}", conf_path.display(), e));
+        let json: serde_json::Value = serde_json::from_str(&raw).expect("tauri.conf.json is JSON");
+        assert_eq!(
+            json.get("productName").and_then(|v| v.as_str()),
+            Some("Roary Mic"),
+            "productName must stay as Roary Mic"
+        );
+        assert_eq!(
+            json.get("identifier").and_then(|v| v.as_str()),
+            Some("com.harunjen.roarymic"),
+            "identifier must stay on the Roary Mic bundle id"
+        );
+    }
 }

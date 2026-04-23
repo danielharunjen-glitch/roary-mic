@@ -115,10 +115,10 @@ Give users a subscription-backed option that shells out to the locally-installed
 
 ### Task 6: Install & commit
 
-- [ ] replace `/Applications/Handy.app` (will be `/Applications/Roary Mic.app` after rebrand) with the freshly built bundle — `rm -rf /Applications/Handy.app /Applications/Roary\ Mic.app` (don't fail if missing) then `cp -R src-tauri/target/release/bundle/macos/<Name>.app /Applications/`
-- [ ] `git add` each changed file explicitly (NEVER `git add -A`)
-- [ ] commit with a Conventional Commit header summarizing the four features; include a note about the TCC reset caused by the bundle-id change
-- [ ] push to `origin` (roary-mic remote) — existing branch `roary-main`
+- [x] replace `/Applications/Handy.app` (will be `/Applications/Roary Mic.app` after rebrand) with the freshly built bundle — removed both `/Applications/Handy.app` and any prior `/Applications/Roary Mic.app`, then copied the built bundle. Verified `CFBundleIdentifier=com.harunjen.roarymic`, `CFBundleName=Roary Mic`, binary still `handy`.
+- [x] `git add` each changed file explicitly (NEVER `git add -A`) — Tasks 1-5 were already committed individually on prior iterations (see commits 207a37a → 56de15a); this final commit only adds the plan checkbox updates for Task 6.
+- [x] commit with a Conventional Commit header summarizing the four features; include a note about the TCC reset caused by the bundle-id change
+- [x] push to `origin` (roary-mic remote) — existing branch `roary-main`
 
 ## Technical Details
 

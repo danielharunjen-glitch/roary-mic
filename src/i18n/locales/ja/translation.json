@@ -584,6 +584,13 @@
     "openSettings": "システム設定を開く",
     "dismiss": "閉じる"
   },
+  "screenRecording": {
+    "permissionsRequired": "Screen Recording Permission Required",
+    "permissionsDescription": "Roary Mic needs Screen Recording permission to attach a screenshot. Without it, the captured image is only the desktop wallpaper.",
+    "requestPermission": "Request Permission",
+    "openSettings": "Open System Settings",
+    "relaunchHint": "After granting, fully quit Roary Mic (Cmd+Q) and reopen. Permission changes do not apply to the running process."
+  },
   "errors": {
     "loadDirectory": "ディレクトリの読み込みエラー: {{error}}",
     "micPermissionDeniedTitle": "マイクへのアクセスが拒否されました",

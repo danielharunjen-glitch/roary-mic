@@ -4,5 +4,7 @@
 <dict>
   <key>NSMicrophoneUsageDescription</key>
   <string>Request microphone access to transcribe audio locally</string>
+  <key>NSScreenCaptureUsageDescription</key>
+  <string>Capture the screen to give the AI model visual context. Only runs when AI mode screenshot is enabled.</string>
 </dict>
 </plist>

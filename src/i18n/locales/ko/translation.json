@@ -584,6 +584,13 @@
     "openSettings": "시스템 설정 열기",
     "dismiss": "닫기"
   },
+  "screenRecording": {
+    "permissionsRequired": "Screen Recording Permission Required",
+    "permissionsDescription": "Roary Mic needs Screen Recording permission to attach a screenshot. Without it, the captured image is only the desktop wallpaper.",
+    "requestPermission": "Request Permission",
+    "openSettings": "Open System Settings",
+    "relaunchHint": "After granting, fully quit Roary Mic (Cmd+Q) and reopen. Permission changes do not apply to the running process."
+  },
   "errors": {
     "loadDirectory": "디렉토리 로딩 오류: {{error}}",
     "micPermissionDeniedTitle": "마이크 접근이 거부되었습니다",

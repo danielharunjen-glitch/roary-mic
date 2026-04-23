@@ -95,6 +95,21 @@ pub fn hide_ai_reply_window(app: &AppHandle) {
     }
 }
 
+/// Re-show an already-existing AI reply window without re-emitting the
+/// payload. Used by `ai_reply_paste` when paste fails after the window was
+/// hidden for focus restoration — the existing React state (text + error
+/// banner) remains intact.
+pub fn show_existing_ai_reply_window(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window(AI_REPLY_WINDOW_LABEL) {
+        if let Err(e) = window.show() {
+            error!("Failed to re-show AI reply window: {}", e);
+        }
+        if let Err(e) = window.set_focus() {
+            debug!("Failed to refocus AI reply window: {}", e);
+        }
+    }
+}
+
 fn ensure_ai_reply_window(app: &AppHandle) {
     if app.get_webview_window(AI_REPLY_WINDOW_LABEL).is_some() {
         return;

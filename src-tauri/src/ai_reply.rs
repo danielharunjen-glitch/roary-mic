@@ -1,5 +1,6 @@
 use log::{debug, error};
-use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
+use std::sync::Mutex;
+use tauri::{AppHandle, Emitter, Listener, Manager, WebviewUrl, WebviewWindowBuilder};
 
 pub const AI_REPLY_WINDOW_LABEL: &str = "ai_reply";
 
@@ -11,13 +12,53 @@ pub struct AiReplyPayload {
     pub text: String,
 }
 
-/// Shows the AI reply window, creating it on first use. The window comes up
-/// frameless, always-on-top, and centered on screen. The provided reply text is
-/// sent to the window via the `ai-mode-reply-ready` event.
+/// Holds a reply payload while the window's JS is still initializing. When the
+/// frontend emits `ai-reply-window-ready` we replay the pending text so no
+/// event is ever dropped.
+#[derive(Default)]
+pub struct AiReplyPending(pub Mutex<Option<String>>);
+
+/// Create the AI reply window eagerly (hidden) and register the ready-handshake.
+/// Called once at startup so the React listener is registered before any
+/// `ai-mode-reply-ready` event fires.
+pub fn create_ai_reply_window(app: &AppHandle) {
+    app.manage(AiReplyPending::default());
+    ensure_ai_reply_window(app);
+
+    // Frontend emits this once `listen("ai-mode-reply-ready", ...)` has
+    // resolved; if a payload was queued before mount, we replay it now.
+    let handle = app.clone();
+    app.listen("ai-reply-window-ready", move |_| {
+        let pending = handle.state::<AiReplyPending>();
+        let text = {
+            let mut guard = pending.0.lock().unwrap_or_else(|p| p.into_inner());
+            guard.take()
+        };
+        if let Some(text) = text {
+            if let Err(e) = handle.emit("ai-mode-reply-ready", AiReplyPayload { text }) {
+                error!("Failed to replay ai-mode-reply-ready: {}", e);
+            }
+        }
+    });
+}
+
+/// Shows the AI reply window. The window was pre-created at startup so the
+/// React listener is already attached — the reply text is delivered via the
+/// `ai-mode-reply-ready` event. If the window was recreated (or recovered from
+/// a crash) and the listener isn't attached yet, `AiReplyPending` holds the
+/// payload until `ai-reply-window-ready` fires.
 pub fn show_ai_reply_window(app: &AppHandle, text: String) {
     ensure_ai_reply_window(app);
 
-    // Emit before showing so the React app has the text on mount.
+    if let Some(pending) = app.try_state::<AiReplyPending>() {
+        if let Ok(mut guard) = pending.0.lock() {
+            *guard = Some(text.clone());
+        }
+    }
+
+    // Emit for the common case where the listener is already attached. If the
+    // listener isn't up yet, the frontend's ready handshake will replay via
+    // AiReplyPending above.
     if let Err(e) = app.emit("ai-mode-reply-ready", AiReplyPayload { text }) {
         error!("Failed to emit ai-mode-reply-ready: {}", e);
     }

@@ -486,7 +486,9 @@ fn default_autostart_enabled() -> bool {
 }
 
 fn default_update_checks_enabled() -> bool {
-    true
+    // Roary Mic fork has no configured updater endpoint; keep update checks
+    // off by default to avoid noisy failed update probes.
+    false
 }
 
 fn default_selected_language() -> String {

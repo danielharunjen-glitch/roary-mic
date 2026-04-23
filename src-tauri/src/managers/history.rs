@@ -922,8 +922,12 @@ impl HistoryManager {
     /// before paste.
     pub fn get_active_corrections(&self) -> Result<Vec<Correction>> {
         let conn = self.get_connection()?;
+        Self::get_active_corrections_with_conn(&conn)
+    }
+
+    fn get_active_corrections_with_conn(conn: &Connection) -> Result<Vec<Correction>> {
         let mut stmt = conn.prepare(
-            "SELECT id, original_text, corrected_text, history_id, created_at, enabled
+            "SELECT id, original_text, corrected_text, history_id, created_at, enabled, kind
              FROM corrections
              WHERE enabled = 1
              ORDER BY created_at ASC",
@@ -1266,5 +1270,21 @@ mod tests {
         let all =
             HistoryManager::list_corrections_with_conn(&conn, 10, None).expect("list all kinds");
         assert_eq!(all.len(), 3);
+    }
+
+    #[test]
+    fn get_active_corrections_loads_kind_column() {
+        let conn = setup_corrections_conn();
+        insert_correction_row(&conn, "halo", "hello", 100, "correction");
+        insert_correction_row(&conn, "my email", "daniel@example.com", 200, "reference");
+
+        let active = HistoryManager::get_active_corrections_with_conn(&conn)
+            .expect("get_active_corrections must succeed when kind column is present");
+        assert_eq!(active.len(), 2);
+        // Sorted oldest-first (ASC by created_at) to preserve application order.
+        assert_eq!(active[0].original_text, "halo");
+        assert_eq!(active[0].kind, "correction");
+        assert_eq!(active[1].original_text, "my email");
+        assert_eq!(active[1].kind, "reference");
     }
 }

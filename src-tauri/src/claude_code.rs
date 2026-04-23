@@ -2,6 +2,12 @@ use serde_json::Value;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
+use std::time::Duration;
+
+/// Maximum time we wait for the `claude` CLI to produce output before killing
+/// the subprocess. Chosen to cover typical agent loops while still freeing the
+/// user if auth/MFA prompts or rate-limit backoff cause the CLI to hang.
+const CLAUDE_CLI_TIMEOUT: Duration = Duration::from_secs(60);
 
 /// Return the path to the `claude` CLI if it is on PATH, otherwise None.
 ///
@@ -104,31 +110,42 @@ pub async fn run_claude_code(
     };
 
     // Offload the blocking subprocess to the runtime's blocking pool so we
-    // don't stall the async executor.
-    let output = tauri::async_runtime::spawn_blocking(move || {
-        let mut child = Command::new("claude")
-            .arg("-p")
-            .arg("--output-format")
-            .arg("stream-json")
-            .arg("--verbose")
-            .arg("--dangerously-skip-permissions")
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .map_err(|e| format!("Failed to spawn claude CLI: {e}"))?;
+    // don't stall the async executor. Run it inside a tokio timeout so an
+    // unresponsive CLI (expired auth, MFA prompt, rate-limit stall) cannot
+    // hang AI mode indefinitely.
+    let output = tokio::time::timeout(
+        CLAUDE_CLI_TIMEOUT,
+        tauri::async_runtime::spawn_blocking(move || {
+            let mut child = Command::new("claude")
+                .arg("-p")
+                .arg("--output-format")
+                .arg("stream-json")
+                .arg("--verbose")
+                .arg("--dangerously-skip-permissions")
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()
+                .map_err(|e| format!("Failed to spawn claude CLI: {e}"))?;
 
-        if let Some(mut stdin) = child.stdin.take() {
-            stdin
-                .write_all(full_prompt.as_bytes())
-                .map_err(|e| format!("Failed to write prompt to claude stdin: {e}"))?;
-        }
+            if let Some(mut stdin) = child.stdin.take() {
+                stdin
+                    .write_all(full_prompt.as_bytes())
+                    .map_err(|e| format!("Failed to write prompt to claude stdin: {e}"))?;
+            }
 
-        child
-            .wait_with_output()
-            .map_err(|e| format!("Failed to wait for claude CLI: {e}"))
-    })
+            child
+                .wait_with_output()
+                .map_err(|e| format!("Failed to wait for claude CLI: {e}"))
+        }),
+    )
     .await
+    .map_err(|_| {
+        format!(
+            "claude CLI timed out after {}s (stuck auth prompt, MFA, or rate-limit backoff?)",
+            CLAUDE_CLI_TIMEOUT.as_secs()
+        )
+    })?
     .map_err(|e| format!("claude subprocess task panicked: {e}"))??;
 
     if !output.status.success() {

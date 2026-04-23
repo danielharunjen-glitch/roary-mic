@@ -1,16 +1,9 @@
-use crate::ai_reply::{hide_ai_reply_window, show_ai_reply_window};
+use crate::ai_reply::hide_ai_reply_window;
 use crate::settings::get_settings;
 use crate::tts;
 use crate::utils;
 use log::{debug, error};
 use tauri::{AppHandle, Emitter};
-
-#[tauri::command]
-#[specta::specta]
-pub fn ai_reply_show(app: AppHandle, text: String) -> Result<(), String> {
-    show_ai_reply_window(&app, text);
-    Ok(())
-}
 
 #[tauri::command]
 #[specta::specta]
@@ -36,9 +29,11 @@ pub async fn ai_reply_speak(app: AppHandle, text: String) -> Result<(), String> 
     let voice_id = settings.elevenlabs_voice_id.clone();
     let model_id = settings.elevenlabs_model_id.clone();
 
-    hide_ai_reply_window(&app);
-
+    // Fetch the MP3 first; only hide the window on success so the user can
+    // read the error banner if TTS fails (bad key, 401, network error).
     let mp3 = tts::speak_via_elevenlabs(&api_key, &voice_id, &model_id, &text).await?;
+
+    hide_ai_reply_window(&app);
 
     // Playback blocks until the audio finishes — offload it so the command
     // resolves immediately and the event loop doesn't hang.

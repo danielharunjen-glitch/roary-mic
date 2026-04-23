@@ -327,13 +327,17 @@ export const AiModeSettings: React.FC = () => {
                 </p>
               </div>
 
-              <ToggleSwitch
-                checked={includeScreenshot}
-                onChange={handleIncludeScreenshotToggle}
-                label={t("settings.aiMode.includeScreenshotLabel")}
-                description={t("settings.aiMode.includeScreenshotDescription")}
-                descriptionMode="inline"
-              />
+              {!isClaudeCodeLocal && (
+                <ToggleSwitch
+                  checked={includeScreenshot}
+                  onChange={handleIncludeScreenshotToggle}
+                  label={t("settings.aiMode.includeScreenshotLabel")}
+                  description={t(
+                    "settings.aiMode.includeScreenshotDescription",
+                  )}
+                  descriptionMode="inline"
+                />
+              )}
 
               <div className="space-y-1">
                 <label className="text-sm font-medium">

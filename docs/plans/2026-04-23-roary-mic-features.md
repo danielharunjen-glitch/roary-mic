@@ -107,11 +107,11 @@ Give users a subscription-backed option that shells out to the locally-installed
 
 ### Task 5: Verify acceptance criteria
 
-- [ ] verify all requirements from Overview are implemented
-- [ ] run full test suite: `cargo test --lib`
-- [ ] run full lint: `bun run lint` + `bun x tsc --noEmit`
-- [ ] run format check: `cargo fmt --check` + `bun x prettier --check 'src/**/*.{ts,tsx}'`
-- [ ] build release: `CMAKE_POLICY_VERSION_MINIMUM=3.5 bun run tauri build --bundles app` — exit 0 (Tauri updater signing error about `TAURI_SIGNING_PRIVATE_KEY` is expected and ignorable)
+- [x] verify all requirements from Overview are implemented — four features (References, Rebrand, AI Reply window, Claude Code provider) present and committed
+- [x] run full test suite: `cargo test --lib` — 104 passed; 0 failed
+- [x] run full lint: `bun run lint` + `bun x tsc --noEmit` — both clean
+- [x] run format check: `cargo fmt --check` + `bun x prettier --check 'src/**/*.{ts,tsx}'` — cargo fmt clean; prettier found 2 files (`AiReplyWindow.tsx`, `AiModeSettings.tsx`) and auto-fixed them; re-run clean
+- [x] build release: `CMAKE_POLICY_VERSION_MINIMUM=3.5 bun run tauri build --bundles app` — bundle produced at `src-tauri/target/release/bundle/macos/Roary Mic.app`; trailing `TAURI_SIGNING_PRIVATE_KEY` updater-signing error is expected and ignorable
 
 ### Task 6: Install & commit
 

@@ -35,9 +35,9 @@ export const AiModeSettings: React.FC = () => {
   const [localElevenApiKey, setLocalElevenApiKey] = useState(elevenApiKey);
   const [localElevenVoiceId, setLocalElevenVoiceId] = useState(elevenVoiceId);
   const [localElevenModelId, setLocalElevenModelId] = useState(elevenModelId);
-  const [claudeCodeAvailable, setClaudeCodeAvailable] = useState<boolean | null>(
-    null,
-  );
+  const [claudeCodeAvailable, setClaudeCodeAvailable] = useState<
+    boolean | null
+  >(null);
 
   useEffect(() => {
     let cancelled = false;

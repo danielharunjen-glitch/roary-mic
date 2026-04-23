@@ -87,9 +87,7 @@ const AiReplyWindow: React.FC = () => {
         data-tauri-drag-region
         className="px-4 py-3 border-b border-mid-gray/20 flex items-center justify-between"
       >
-        <h1 className="text-sm font-semibold">
-          {t("aiReplyWindow.title")}
-        </h1>
+        <h1 className="text-sm font-semibold">{t("aiReplyWindow.title")}</h1>
         <span className="text-xs text-mid-gray">
           {t("aiReplyWindow.subtitle")}
         </span>

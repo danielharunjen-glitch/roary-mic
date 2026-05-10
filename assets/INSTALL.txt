@@ -1,0 +1,29 @@
+Roary Mic — Install
+====================
+
+1. Drag the Roary Mic icon onto the Applications folder (in this window).
+
+2. Open your Applications folder.
+
+3. RIGHT-CLICK Roary Mic, then choose "Open".
+   A popup will warn about an unidentified developer.
+   Click "Open" again.
+
+   This is a one-time macOS bypass for apps not bought from the App Store.
+   After the first launch, double-click works normally.
+
+4. Grant Microphone and Accessibility when prompted.
+
+5. Press your shortcut and start talking.
+
+
+If macOS says "Roary Mic is damaged and can't be opened":
+
+   Open Terminal and paste:
+
+      xattr -dr com.apple.quarantine "/Applications/Roary Mic.app"
+
+   Then double-click Roary Mic from Applications.
+
+
+Source: https://github.com/danielharunjen-glitch/roary-mic
